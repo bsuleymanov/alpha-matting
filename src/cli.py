@@ -7,12 +7,9 @@ import torch
 from torch import nn
 from torch.nn import functional as F
 from torchvision.utils import save_image
-from model import GaussianBlurLayer
+from model import GaussianBlurLayer, MODNet
 
 
-
-class MODNet:
-    pass
 
 def train_from_folder(
     data_dir="../data",
@@ -21,9 +18,9 @@ def train_from_folder(
     image_size=512,
     version="mobilenetv2",
     total_step=1000000,
-    batch_size=4,
-    accumulation_steps=2,
-    n_workers=2,
+    batch_size=1,
+    accumulation_steps=4,
+    n_workers=8,
     learning_rate=0.0002,
     lr_decay=0.95,
     beta1=0.5,
@@ -34,7 +31,7 @@ def train_from_folder(
     is_train=True,
     parallel=False,
     use_tensorboard=False,
-    image_path="../data/dataset/train/image",
+    image_path="../data/dataset/train/",
     mask_path="../data/dataset/train/seg",
     log_path="./logs",
     model_save_path="./models",
@@ -57,7 +54,7 @@ def train_from_folder(
     mkdir_if_empty_or_not_exist(sample_path)
     mkdir_if_empty_or_not_exist(model_save_path)
 
-    dataloader = MattingLoader(image_path, mask_path, image_size,
+    dataloader = MattingLoader(image_path, image_size,
                                batch_size, is_train).loader()
     data_iter = iter(dataloader)
     step_per_epoch = len(dataloader)
@@ -86,15 +83,17 @@ def train_from_folder(
         except:
             data_iter = iter(dataloader)
             images, trimaps_true, mattes_true = next(data_iter)
+        images = images.to(device)
+        trimaps_true = trimaps_true.to(device)
+        mattes_true = mattes_true.to(device)
 
         network.train()
-        optimizer.zero_grad()
-
         # semantic loss
-        semantics_pred, details_pred, mattes_pred = network(images, False)
+        semantics_pred, details_pred, mattes_pred = network(images, "train")
         boundaries = (trimaps_true < 0.5) + (trimaps_true > 0.5)
         semantics_true = F.interpolate(mattes_true, scale_factor=1/16, mode="bilinear")
         semantics_true = blurer(semantics_true)
+        print(semantics_true.size(), semantics_pred.size())
         semantic_loss = torch.mean(F.mse_loss(semantics_pred, semantics_true))
         semantic_loss = semantic_scale * semantic_loss
 
@@ -116,14 +115,17 @@ def train_from_folder(
         # optimization step
         loss = semantic_loss + detail_loss + matte_loss
         loss.backward()
-        optimizer.step()
+
+        if (step + 1) % accumulation_steps == 0:  # Wait for several backward steps
+            optimizer.step()
+            optimizer.zero_grad()
 
         # logging
         if verbose > 0:
             if (step + 1) % log_step == 0:
                 elapsed = time.time() - start_time
                 elapsed = str(datetime.timedelta(seconds=elapsed))
-                print(f"Elapsed [elapsed], step [{step + 1} / {total_step}], "
+                print(f"Elapsed [{elapsed}], step [{step + 1} / {total_step}], "
                       f"loss: {loss.item():.4f}")
 
 

@@ -11,7 +11,12 @@ class MattingDataset:
         self.trimap_list = list(map(str, Path(image_dir).rglob("*trimap_true.png")))
         self.matte_list = list(map(str, Path(image_dir).rglob("*.png")))
         self.matte_list = [x for x in self.matte_list if "trimap" not in x]
+        # hack
+        self.image_list = [x[:-4]+".jpg" for x in self.matte_list]
+        print(len(self.image_list), len(self.trimap_list), len(self.matte_list))
         self.image_transform = image_transform
+        self.trimap_transform = trimap_transform
+        self.matte_transform = matte_transform
         self.train_dataset = []
         self.test_dataset = []
         self.mode = mode

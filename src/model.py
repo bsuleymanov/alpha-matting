@@ -5,7 +5,7 @@ import math
 import numpy as np
 import scipy
 
-from .backbones import SUPPORTED_BACKBONES
+from backbones import SUPPORTED_BACKBONES
 
 class GaussianBlurLayer(nn.Module):
     def __init__(self, n_channels, kernel_size):
@@ -32,7 +32,7 @@ class GaussianBlurLayer(nn.Module):
             exit()
         return self.op(image)
 
-    def _init_kerne(self):
+    def _init_kernel(self):
         sigma = 0.3 * ((self.kernel_size - 1) * 0.5 - 1) + 0.8
         n = np.zeros((self.kernel_size, self.kernel_size))
         i = math.floor(self.kernel_size / 2)
@@ -62,7 +62,7 @@ class ConvBlock(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size,
                  stride=1, padding=0, dilation=1, groups=1, bias=True,
                  use_ibn=True, use_relu=True):
-        super(Conv2dIBNormRelu, self).__init__()
+        super(ConvBlock, self).__init__()
         layers = [
             nn.Conv2d(in_channels, out_channels, kernel_size,
                       stride=stride, padding=padding, dilation=dilation,
@@ -129,7 +129,7 @@ class LRBranch(nn.Module):
 
 class HRBranch(nn.Module):
     def __init__(self, hr_channels, enc_channels):
-        super(HRBranch, self).__init__
+        super(HRBranch, self).__init__()
         self.tohr_enc2x = ConvBlock(enc_channels[0], hr_channels, 1,
                                     stride=1, padding=0)
         self.conv_enc2x = ConvBlock(hr_channels + 3, hr_channels, 3,
@@ -139,7 +139,7 @@ class HRBranch(nn.Module):
         self.conv_enc4x = ConvBlock(2 * hr_channels, 2 * hr_channels, 3,
                                     stride=1, padding=1)
         self.conv_hr4x = nn.Sequential(
-            ConvBlock(3 * hr_channels, 2 * hr_channels, 3, stride=1, padding=1),
+            ConvBlock(3 * hr_channels + 3, 2 * hr_channels, 3, stride=1, padding=1),
             ConvBlock(2 * hr_channels, 2 * hr_channels, 3, stride=1, padding=1),
             ConvBlock(2 * hr_channels, hr_channels, 3, stride=1, padding=1),
         )
@@ -156,9 +156,9 @@ class HRBranch(nn.Module):
         )
 
     def forward(self, image, enc2x, enc4x, lr8x, mode):
-        image2x = F.itnerpolate(image, scale_factor=1/2, mode="bilinear",
+        image2x = F.interpolate(image, scale_factor=1/2, mode="bilinear",
                                 align_corners=False)
-        image4x = F.itnerpolate(image, scale_factor=1/4, mode="bilinear",
+        image4x = F.interpolate(image, scale_factor=1/4, mode="bilinear",
                                 align_corners=False)
         enc2x = self.tohr_enc2x(enc2x)
         hr4x = self.conv_enc2x(torch.cat((image2x, enc2x), dim=1))
@@ -212,6 +212,7 @@ class FusionBranch(nn.Module):
 class MODNet(nn.Module):
     def __init__(self, in_channels=3, hr_channels=32, backbone_arch="mobilenetv2",
                  backbone_pretrained=True):
+        super(MODNet, self).__init__()
         self.in_channels = in_channels
         self.hr_channels = hr_channels
         self.backbone_arch = backbone_arch
@@ -220,8 +221,8 @@ class MODNet(nn.Module):
         self.backbone = SUPPORTED_BACKBONES[self.backbone_arch](self.in_channels)
 
         self.lr_branch = LRBranch(self.backbone)
-        self.hr_branch = HRBranch(self.hr_branch, self.backbone.enc_channels)
-        self.f_branch = FusionBranch(self.hr_branch, self.backbone.enc_channels)
+        self.hr_branch = HRBranch(self.hr_channels, self.backbone.enc_channels)
+        self.f_branch = FusionBranch(self.hr_channels, self.backbone.enc_channels)
 
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
