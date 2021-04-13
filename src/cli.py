@@ -93,7 +93,7 @@ def train_from_folder(
         boundaries = (trimaps_true < 0.5) + (trimaps_true > 0.5)
         semantics_true = F.interpolate(mattes_true, scale_factor=1/16, mode="bilinear")
         semantics_true = blurer(semantics_true)
-        print(semantics_true.size(), semantics_pred.size())
+        #print(semantics_true.size(), semantics_pred.size())
         semantic_loss = torch.mean(F.mse_loss(semantics_pred, semantics_true))
         semantic_loss = semantic_scale * semantic_loss
 
