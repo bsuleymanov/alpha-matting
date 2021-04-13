@@ -7,6 +7,9 @@ import torch
 from torch import nn
 from torch.nn import functional as F
 from torchvision.utils import save_image
+from model import GaussianBlurLayer
+
+
 
 class MODNet:
     pass
@@ -65,6 +68,7 @@ def train_from_folder(
     else:
         start = 0
 
+    blurer = GaussianBlurLayer(1, 3).to(device)
     network = MODNet().to(device)
     if parallel:
         network = nn.DataParallel(network)
