@@ -18,7 +18,7 @@ def train_from_folder(
     image_size=512,
     version="mobilenetv2",
     total_step=1000000,
-    batch_size=1,
+    batch_size=5,
     accumulation_steps=4,
     n_workers=8,
     learning_rate=0.0002,
