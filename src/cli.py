@@ -1,4 +1,4 @@
-from dataloader import MattingLoader
+from dataloader import MattingLoader, MattingTestLoader
 from utils import mkdir_if_empty_or_not_exist
 import time
 import datetime
@@ -35,7 +35,7 @@ def train_from_folder(
     mask_path="../data/dataset/train/seg",
     log_path="./logs",
     model_save_path="./models",
-    sample_path="./samples",
+    sample_path="./sample_path",
     test_image_path="../data/dataset/val/image",
     test_mask_path="./test_results",
     test_color_mask_path="./test_color_visualize",
@@ -142,8 +142,81 @@ def train_from_folder(
                        str(model_save_path / f"{step + 1}_network.pth"))
 
 
+def inference_from_folder(
+    data_dir="../data",
+    results_dir="../data/results",
+    models_dir="../",
+    image_size=512,
+    version="mobilenetv2",
+    total_step=1000000,
+    batch_size=5,
+    accumulation_steps=4,
+    n_workers=8,
+    learning_rate=0.0002,
+    lr_decay=0.95,
+    beta1=0.5,
+    beta2=0.999,
+    test_size=2824,
+    model_name="model.pth",
+    pretrained_model=None,
+    is_train=False,
+    parallel=False,
+    use_tensorboard=False,
+    image_path="../data/dataset/train/",
+    mask_path="../data/dataset/train/seg",
+    log_path="./logs",
+    model_load_path="./models",
+    inference_path ="./inference_samples",
+    test_image_path="../data/dataset/val/image",
+    test_mask_path="./test_results",
+    test_color_mask_path="./test_color_visualize",
+    log_step=10,
+    sample_step=100,
+    model_save_step=1.0,
+    device="cuda",
+    verbose=1,
+    dataset="matting",
+    semantic_scale=10.0,
+    detail_scale=10.0,
+    matte_scale=1.0
+):
+    inference_path = Path(inference_path)
+    model_load_path = Path(model_load_path)
+    mkdir_if_empty_or_not_exist(inference_path)
+    #mkdir_if_empty_or_not_exist(model_load_path)
+
+    dataloader = MattingTestLoader(image_path, image_size,
+                               batch_size, is_train).loader()
+    data_iter = iter(dataloader)
+
+    blurer = GaussianBlurLayer(1, 3).to(device)
+    network = MODNet().to(device)
+    network.load_state_dict(torch.load(f"{model_load_path}/15312_network.pth"))
+    network.eval()
+
+    if verbose > 0:
+        print(network)
+
+    start_time = time.time()
+    for step in range(len(dataloader)):
+        try:
+            images, paths = next(data_iter)
+        except:
+            data_iter = iter(dataloader)
+            images, paths = next(data_iter)
+        images = images.to(device)
+
+        # semantic loss
+        with torch.no_grad():
+            _, _, mattes_pred = network(images, "test")
+            for k, matte_pred in enumerate(mattes_pred):
+                save_image(matte_pred.data,
+                           f"{inference_path}/{paths[k].split('/')[-1][:-4]}_inference.png")
+
+
 def main():
-    train_from_folder()
+    #train_from_folder()
+    inference_from_folder()
 
 
 if __name__ == "__main__":

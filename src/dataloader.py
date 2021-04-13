@@ -58,6 +58,39 @@ class MattingDataset:
         return self.n_images
 
 
+class MattingTestDataset:
+    def __init__(self, image_dir, image_transform, verbose=0):
+        self.image_list = list(map(str, Path(image_dir).rglob("*.jpg")))
+        print(len(self.image_list))
+        self.image_transform = image_transform
+        self.test_dataset = []
+        self.verbose = verbose
+
+        self.preprocess()
+
+        self.n_images = len(self.test_dataset)
+
+    def preprocess(self):
+        for i in range(len(self.image_list)):
+            image_path = self.image_list[i]
+            if self.verbose > 0:
+                print(image_path)
+            self.test_dataset.append(image_path)
+
+        if self.verbose > 0:
+            print("Finished preprocessing the CelebA dataset...")
+
+    def __getitem__(self, index):
+        dataset = self.test_dataset
+        image_path = dataset[index]
+        image = Image.open(image_path)
+
+        return self.image_transform(image), image_path
+
+    def __len__(self):
+        return self.n_images
+
+
 class MattingLoader:
     def __init__(self, image_path, image_size, batch_size, mode):
         self.image_dir = Path(image_path)
@@ -89,6 +122,39 @@ class MattingLoader:
             dataset=dataset, batch_size=self.batch_size,
             shuffle=(self.mode == "train"),
             num_workers=2, drop_last=False)
+        return data_loader
+
+
+class MattingTestLoader:
+    def __init__(self, image_path, image_size, batch_size, mode):
+        self.image_dir = Path(image_path)
+        self.image_size = image_size
+        self.batch_size = batch_size
+        self.mode = mode
+
+    def transform(self):
+        image_transform = transforms.Compose([
+            transforms.Resize((self.image_size, self.image_size)),
+            transforms.ToTensor(),
+        ])
+        # trimap_transform = transforms.Compose([
+        #     transforms.Resize((self.image_size, self.image_size)),
+        #     transforms.ToTensor(),
+        # ])
+        # matte_transform = transforms.Compose([
+        #     transforms.Resize((self.image_size, self.image_size)),
+        #     transforms.ToTensor(),
+        # ])
+
+        return image_transform#, trimap_transform, matte_transform
+
+    def loader(self):
+        image_transform = self.transform()
+        dataset = MattingTestDataset(self.image_dir, image_transform, self.mode)
+        data_loader = torch.utils.data.DataLoader(
+            dataset=dataset, batch_size=self.batch_size,
+            shuffle=False,
+            num_workers=8, drop_last=False)
         return data_loader
 
 
