@@ -8,6 +8,7 @@ from torch import nn
 from torch.nn import functional as F
 from torchvision.utils import save_image
 from model import GaussianBlurLayer, MODNet
+from utils import denorm
 
 
 
@@ -17,11 +18,11 @@ def train_from_folder(
     models_dir="../",
     image_size=512,
     version="mobilenetv2",
-    total_step=1000000,
+    total_step=150000,
     batch_size=5,
-    accumulation_steps=4,
+    accumulation_steps=3,
     n_workers=8,
-    learning_rate=0.0002,
+    learning_rate=0.01,
     lr_decay=0.95,
     beta1=0.5,
     beta2=0.999,
@@ -58,6 +59,8 @@ def train_from_folder(
                                batch_size, is_train).loader()
     data_iter = iter(dataloader)
     step_per_epoch = len(dataloader)
+    total_epoch = total_step / step_per_epoch
+    print(total_epoch)
     model_save_step = int(model_save_step * step_per_epoch)
 
     if pretrained_model:
@@ -69,10 +72,13 @@ def train_from_folder(
     network = MODNet().to(device)
     if parallel:
         network = nn.DataParallel(network)
-    optimizer = torch.optim.Adam(
-        filter(lambda p: p.requires_grad, network.parameters()),
-        learning_rate, [beta1, beta2]
-    )
+    #optimizer = torch.optim.Adam(
+    #    filter(lambda p: p.requires_grad, network.parameters()),
+    #    learning_rate, [beta1, beta2]
+    #)
+    optimizer = torch.optim.Adam(network.parameters())
+    #optimizer = torch.optim.SGD(network.parameters(), lr=learning_rate, momentum=0.9)
+    #lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=int(0.25 * total_epoch), gamma=0.1)
     if verbose > 0:
         print(network)
 
@@ -88,6 +94,7 @@ def train_from_folder(
         mattes_true = mattes_true.to(device)
 
         network.train()
+        network.freeze_bn()
         # semantic loss
         semantics_pred, details_pred, mattes_pred = network(images, "train")
         boundaries = (trimaps_true < 0.5) + (trimaps_true > 0.5)
@@ -128,18 +135,28 @@ def train_from_folder(
                 print(f"Elapsed [{elapsed}], step [{step + 1} / {total_step}], "
                       f"loss: {loss.item():.4f}")
 
+        del semantics_pred, details_pred, mattes_pred, \
+            semantics_true, boundary_detail_pred, details_true, \
+            boundary_mattes_pred
+        torch.cuda.empty_cache()
 
         if (step + 1) % sample_step == 0:
-            with torch.no_grad():
-                network.eval()
-                save_image(mattes_pred[0:1].data,
-                           str(sample_path / f"{step+1}_predict.png"))
-                save_image(mattes_true[0:1].data,
-                           str(sample_path / f"{step + 1}_true.png"))
+            network.eval()
+            _, _, mattes_samples = network(images, "test")
+            #print(mattes_samples.sum())
+            save_image(mattes_samples[0:1].data,
+                       str(sample_path / f"{step+1}_predict.png"))
+            save_image(mattes_true[0:1].data,
+                       str(sample_path / f"{step + 1}_true.png"))
+            del mattes_samples
+            torch.cuda.empty_cache()
 
         if (step + 1) % model_save_step == 0:
             torch.save(network.state_dict(),
                        str(model_save_path / f"{step + 1}_network.pth"))
+
+        #if (step + 1) % step_per_epoch:
+        #    lr_scheduler.step()
 
 
 def inference_from_folder(
@@ -149,7 +166,7 @@ def inference_from_folder(
     image_size=512,
     version="mobilenetv2",
     total_step=1000000,
-    batch_size=5,
+    batch_size=1,
     accumulation_steps=4,
     n_workers=8,
     learning_rate=0.0002,
@@ -162,10 +179,10 @@ def inference_from_folder(
     is_train=False,
     parallel=False,
     use_tensorboard=False,
-    image_path="../data/dataset/train/",
+    image_path="../data/dataset/val/",
     mask_path="../data/dataset/train/seg",
     log_path="./logs",
-    model_load_path="./models",
+    model_load_path="./models_old1",
     inference_path ="./inference_samples",
     test_image_path="../data/dataset/val/image",
     test_mask_path="./test_results",
@@ -186,13 +203,13 @@ def inference_from_folder(
     #mkdir_if_empty_or_not_exist(model_load_path)
 
     dataloader = MattingTestLoader(image_path, image_size,
-                               batch_size, is_train).loader()
+                                   batch_size, is_train).loader()
     data_iter = iter(dataloader)
 
-    blurer = GaussianBlurLayer(1, 3).to(device)
-    network = MODNet().to(device)
-    network.load_state_dict(torch.load(f"{model_load_path}/15312_network.pth"))
-    network.eval()
+    network = MODNet(backbone_pretrained=False).to(device)
+    network.load_state_dict(torch.load(f"{model_load_path}/30624_network.pth"))
+    network.train()
+    network.freeze_bn()
 
     if verbose > 0:
         print(network)
@@ -215,8 +232,8 @@ def inference_from_folder(
 
 
 def main():
-    #train_from_folder()
-    inference_from_folder()
+    train_from_folder()
+    #inference_from_folder()
 
 
 if __name__ == "__main__":
