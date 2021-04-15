@@ -43,7 +43,7 @@ class GaussianBlurLayer(nn.Module):
             param.data.copy_(torch.from_numpy(kernel))
 
 
-class IBNorm(nn.Module):
+class IBNorm1(nn.Module):
     def __init__(self, in_channels):
         super(IBNorm, self).__init__()
         self.bnorm_channels = int(in_channels / 2)
@@ -54,9 +54,17 @@ class IBNorm(nn.Module):
 
     def forward(self, image):
         image_bn = self.bnorm(image[:, :self.bnorm_channels, ...].contiguous())
-        image_in = self.bnorm(image[:, self.bnorm_channels:, ...].contiguous())
+        image_in = self.inorm(image[:, self.bnorm_channels:, ...].contiguous())
         return torch.cat((image_bn, image_in), 1)
 
+class IBNorm(nn.Module):
+    def __init__(self, in_channels):
+        super(IBNorm, self).__init__()
+        self.inorm = nn.InstanceNorm2d(in_channels, affine=True)
+
+    def forward(self, image):
+        image_in = self.inorm(image)
+        return image_in
 
 class ConvBlock(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size,
@@ -233,6 +241,9 @@ class MODNet(nn.Module):
         if self.backbone_pretrained:
             self.backbone.load_pretrained_ckpt()
 
+        #self.freeze_bn()
+        self.freeze_backbone()
+
     def forward(self, image, mode):
         semantic_pred, lr8x, [enc2x, enc4x] = self.lr_branch(image, mode)
         detail_pred, hr2x = self.hr_branch(image, enc2x, enc4x, lr8x, mode)
@@ -240,12 +251,26 @@ class MODNet(nn.Module):
 
         return semantic_pred, detail_pred, matte_pred
 
+    def freeze_backbone(self):
+        for param in self.backbone.parameters():
+            param.requires_grad = False
+
     def freeze_norm(self):
         norm_types = [nn.BatchNorm2d, nn.InstanceNorm2d]
         for m in self.modules():
             for n in norm_types:
                 if isinstance(m, n):
                     m.eval()
+                    continue
+
+    def freeze_bn(self):
+        norm_types = [nn.BatchNorm2d]
+        for m in self.modules():
+            for n in norm_types:
+                if isinstance(m, n):
+                    m.eval()
+                    m.weight.requires_grad = False
+                    m.bias.requires_grad = False
                     continue
 
     def _init_conv(self, conv):
@@ -258,24 +283,3 @@ class MODNet(nn.Module):
         if norm.weight is not None:
             nn.init.constant_(norm.weight, 1)
             nn.init.constant_(norm.bias, 0)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
