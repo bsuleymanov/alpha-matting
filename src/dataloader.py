@@ -102,6 +102,7 @@ class MattingLoader:
         image_transform = transforms.Compose([
             transforms.Resize((self.image_size, self.image_size)),
             transforms.ToTensor(),
+            transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
         ])
         trimap_transform = transforms.Compose([
             transforms.Resize((self.image_size, self.image_size)),
@@ -121,7 +122,7 @@ class MattingLoader:
         data_loader = torch.utils.data.DataLoader(
             dataset=dataset, batch_size=self.batch_size,
             shuffle=(self.mode == "train"),
-            num_workers=2, drop_last=False)
+            num_workers=5, drop_last=False)
         return data_loader
 
 
@@ -136,6 +137,7 @@ class MattingTestLoader:
         image_transform = transforms.Compose([
             transforms.Resize((self.image_size, self.image_size)),
             transforms.ToTensor(),
+            transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
         ])
         # trimap_transform = transforms.Compose([
         #     transforms.Resize((self.image_size, self.image_size)),
