@@ -1,6 +1,7 @@
 import numpy as np
 from scipy.ndimage import grey_dilation, grey_erosion
 from pathlib import Path
+import torch
 
 def generate_trimap_from_alpha(masks):
     batch_size, height, width = masks.shape
@@ -19,3 +20,8 @@ def mkdir_if_empty_or_not_exist(dir_name):
         Path.mkdir(dir_name, exist_ok=True)
     else:
         raise Exception
+
+
+def denorm(tensor):
+    out = (tensor + 1) / 2
+    return out.clamp_(0, 1)
