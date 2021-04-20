@@ -41,7 +41,7 @@ def train_from_folder(
     test_mask_path="./test_results",
     test_color_mask_path="./test_color_visualize",
     log_step=10,
-    sample_step=10,
+    sample_step=100,
     model_save_step=1.0,
     device="cuda",
     verbose=1,
@@ -99,7 +99,7 @@ def train_from_folder(
 
         #print(trimaps_true.sum())
         #print(trimaps_true.max())
-        print(torch.unique(trimaps_true))
+        #print(torch.unique(trimaps_true))
         network.train()
         network.freeze_bn()
         # semantic loss
