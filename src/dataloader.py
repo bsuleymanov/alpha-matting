@@ -122,7 +122,7 @@ class MattingLoader:
         data_loader = torch.utils.data.DataLoader(
             dataset=dataset, batch_size=self.batch_size,
             shuffle=(self.mode == "train"),
-            num_workers=5, drop_last=False)
+            num_workers=8, drop_last=False)
         return data_loader
 
 

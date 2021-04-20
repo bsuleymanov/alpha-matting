@@ -19,8 +19,8 @@ def train_from_folder(
     image_size=512,
     version="mobilenetv2",
     total_step=150000,
-    batch_size=5,
-    accumulation_steps=3,
+    batch_size=8,
+    accumulation_steps=2,
     n_workers=8,
     learning_rate=0.01,
     lr_decay=0.95,
@@ -78,7 +78,7 @@ def train_from_folder(
     #)
     optimizer = torch.optim.Adam(network.parameters())
     #optimizer = torch.optim.SGD(network.parameters(), lr=learning_rate, momentum=0.9)
-    #lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=int(0.25 * total_epoch), gamma=0.1)
+    lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=int(0.25 * total_epoch), gamma=0.1)
     if verbose > 0:
         print(network)
 
@@ -156,7 +156,7 @@ def train_from_folder(
                        str(model_save_path / f"{step + 1}_network.pth"))
 
         #if (step + 1) % step_per_epoch:
-        #    lr_scheduler.step()
+            #lr_scheduler.step()
 
 
 def inference_from_folder(
@@ -166,7 +166,7 @@ def inference_from_folder(
     image_size=512,
     version="mobilenetv2",
     total_step=1000000,
-    batch_size=1,
+    batch_size=10,
     accumulation_steps=4,
     n_workers=8,
     learning_rate=0.0002,
@@ -182,7 +182,7 @@ def inference_from_folder(
     image_path="../data/dataset/val/",
     mask_path="../data/dataset/train/seg",
     log_path="./logs",
-    model_load_path="./models_old1",
+    model_load_path="./models",
     inference_path ="./inference_samples",
     test_image_path="../data/dataset/val/image",
     test_mask_path="./test_results",
@@ -207,9 +207,9 @@ def inference_from_folder(
     data_iter = iter(dataloader)
 
     network = MODNet(backbone_pretrained=False).to(device)
-    network.load_state_dict(torch.load(f"{model_load_path}/30624_network.pth"))
-    network.train()
-    network.freeze_bn()
+    network.load_state_dict(torch.load(f"{model_load_path}/67004_network.pth"))
+    network.eval()
+    #network.freeze_bn()
 
     if verbose > 0:
         print(network)
@@ -232,8 +232,8 @@ def inference_from_folder(
 
 
 def main():
-    train_from_folder()
-    #inference_from_folder()
+    #train_from_folder()
+    inference_from_folder()
 
 
 if __name__ == "__main__":
