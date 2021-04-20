@@ -2,7 +2,7 @@ import torch
 from torchvision import transforms
 from PIL import Image
 from pathlib import Path
-
+from torchvision.transforms.functional import InterpolationMode
 
 class MattingDataset:
     def __init__(self, image_dir, image_transform, trimap_transform,
@@ -13,6 +13,8 @@ class MattingDataset:
         self.matte_list = [x for x in self.matte_list if "trimap" not in x]
         # hack
         self.image_list = [x[:-4]+".jpg" for x in self.matte_list]
+        self.trimap_list = [x[:-4]+"_trimap_true.png" for x in self.matte_list]
+        print(self.trimap_list[0])
         print(len(self.image_list), len(self.trimap_list), len(self.matte_list))
         self.image_transform = image_transform
         self.trimap_transform = trimap_transform
@@ -105,7 +107,7 @@ class MattingLoader:
             transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
         ])
         trimap_transform = transforms.Compose([
-            transforms.Resize((self.image_size, self.image_size)),
+            transforms.Resize((self.image_size, self.image_size), interpolation=InterpolationMode.NEAREST),
             transforms.ToTensor(),
         ])
         matte_transform = transforms.Compose([
