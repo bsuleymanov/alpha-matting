@@ -8,9 +8,9 @@ from torch import nn
 from torch.nn import functional as F
 from torchvision.utils import save_image
 from model import GaussianBlurLayer, MODNet
-from utils import denorm
-
-
+from utils import denorm, tensor_to_image
+import wandb
+import numpy as np
 
 def train_from_folder(
     data_dir="../data",
@@ -41,7 +41,7 @@ def train_from_folder(
     test_mask_path="./test_results",
     test_color_mask_path="./test_color_visualize",
     log_step=10,
-    sample_step=100,
+    sample_step=10,
     model_save_step=1.0,
     device="cuda",
     verbose=1,
@@ -50,6 +50,10 @@ def train_from_folder(
     detail_scale=10.0,
     matte_scale=1.0
 ):
+    wandb.init(project="alpha-matting",  entity='bsuleymanov')
+
+    config = wandb.config
+
     sample_path = Path(sample_path)
     model_save_path = Path(model_save_path)
     mkdir_if_empty_or_not_exist(sample_path)
@@ -134,6 +138,10 @@ def train_from_folder(
                 elapsed = str(datetime.timedelta(seconds=elapsed))
                 print(f"Elapsed [{elapsed}], step [{step + 1} / {total_step}], "
                       f"loss: {loss.item():.4f}")
+                wandb.log({"loss": loss.item(),
+                           "semantic loss": semantic_loss.item(),
+                           "detail loss": detail_loss.item(),
+                           "matte loss": matte_loss.item()})
 
         del semantics_pred, details_pred, mattes_pred, \
             semantics_true, boundary_detail_pred, details_true, \
@@ -144,10 +152,13 @@ def train_from_folder(
             network.eval()
             _, _, mattes_samples = network(images, "test")
             #print(mattes_samples.sum())
-            save_image(mattes_samples[0:1].data,
-                       str(sample_path / f"{step+1}_predict.png"))
-            save_image(mattes_true[0:1].data,
-                       str(sample_path / f"{step + 1}_true.png"))
+            #save_image(mattes_samples[0:1].data,
+            #           str(sample_path / f"{step+1}_predict.png"))
+            #save_image(mattes_true[0:1].data,
+            #           str(sample_path / f"{step + 1}_true.png"))
+            im_to_save = tensor_to_image(mattes_samples[0])
+            print(np.array(im_to_save).shape)
+            wandb.log({"examples": [wandb.Image(im_to_save, caption="Label")]})
             del mattes_samples
             torch.cuda.empty_cache()
 
@@ -232,8 +243,8 @@ def inference_from_folder(
 
 
 def main():
-    #train_from_folder()
-    inference_from_folder()
+    train_from_folder()
+    #inference_from_folder()
 
 
 if __name__ == "__main__":
