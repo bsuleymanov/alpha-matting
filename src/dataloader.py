@@ -86,8 +86,9 @@ class MattingTestDataset:
         dataset = self.test_dataset
         image_path = dataset[index]
         image = Image.open(image_path)
+        size = image.size
 
-        return self.image_transform(image), image_path
+        return self.image_transform(image), image_path, size
 
     def __len__(self):
         return self.n_images

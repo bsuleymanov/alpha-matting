@@ -11,6 +11,8 @@ from model import GaussianBlurLayer, MODNet
 from utils import denorm, tensor_to_image
 import wandb
 import numpy as np
+import tqdm
+from torchvision import transforms
 
 def train_from_folder(
     data_dir="../data",
@@ -159,7 +161,8 @@ def train_from_folder(
 
         if (step + 1) % sample_step == 0:
             network.eval()
-            _, _, mattes_samples = network(images, "test")
+            with torch.no_grad():
+                _, _, mattes_samples = network(images, "test")
             #print(mattes_samples.sum())
             #save_image(mattes_samples[0:1].data,
             #           str(sample_path / f"{step+1}_predict.png"))
@@ -186,7 +189,7 @@ def inference_from_folder(
     image_size=512,
     version="mobilenetv2",
     total_step=1000000,
-    batch_size=10,
+    batch_size=30,
     accumulation_steps=4,
     n_workers=8,
     learning_rate=0.0002,
@@ -203,7 +206,7 @@ def inference_from_folder(
     mask_path="../data/dataset/train/seg",
     log_path="./logs",
     model_load_path="./models",
-    inference_path ="./inference_samples",
+    inference_path ="./result_submission",
     test_image_path="../data/dataset/val/image",
     test_mask_path="./test_results",
     test_color_mask_path="./test_color_visualize",
@@ -227,7 +230,7 @@ def inference_from_folder(
     data_iter = iter(dataloader)
 
     network = MODNet(backbone_pretrained=False).to(device)
-    network.load_state_dict(torch.load(f"{model_load_path}/67004_network.pth"))
+    network.load_state_dict(torch.load(f"{model_load_path}/31109_network.pth"))
     network.eval()
     #network.freeze_bn()
 
@@ -235,25 +238,33 @@ def inference_from_folder(
         print(network)
 
     start_time = time.time()
-    for step in range(len(dataloader)):
+    for step in tqdm.tqdm(range(len(dataloader))):
         try:
-            images, paths = next(data_iter)
+            images, paths, orig_sizes = next(data_iter)
         except:
             data_iter = iter(dataloader)
-            images, paths = next(data_iter)
+            images, paths, orig_sizes = next(data_iter)
         images = images.to(device)
-
         # semantic loss
         with torch.no_grad():
             _, _, mattes_pred = network(images, "test")
             for k, matte_pred in enumerate(mattes_pred):
-                save_image(matte_pred.data,
-                           f"{inference_path}/{paths[k].split('/')[-1][:-4]}_inference.png")
+                #print('/'.join([str(inference_path)]+paths[k].split('/')[4:-1]))
+                Path('/'.join([str(inference_path)]+paths[k].split('/')[4:-1])).mkdir(parents=True, exist_ok=True)
+                width, height = orig_sizes[0][k], orig_sizes[1][k]
+                save_transform = transforms.Compose([
+                    transforms.ToPILImage(),
+                    transforms.Resize((height, width)),
+                    transforms.ToTensor()
+                ])
+                matte_pred = save_transform(matte_pred.data)
+                save_image(matte_pred,
+                           f"{inference_path}/{'/'.join(paths[k].split('/')[4:])[:-4]}.png")
 
 
 def main():
-    train_from_folder()
-    #inference_from_folder()
+    #train_from_folder()
+    inference_from_folder()
 
 
 if __name__ == "__main__":
