@@ -3,6 +3,9 @@ from torchvision import transforms
 from PIL import Image
 from pathlib import Path
 from torchvision.transforms.functional import InterpolationMode
+import numpy as np
+
+
 
 class MattingDataset:
     def __init__(self, image_dir, image_transform, trimap_transform,
@@ -51,7 +54,19 @@ class MattingDataset:
         image_path, trimap_path, matte_path = dataset[index]
         image = Image.open(image_path)
         trimap = Image.open(trimap_path)
+        #trimap = np.array(trimap)
+        #if len(trimap) == 3:
+        #    print(trimap.shape)
+        #    trimap = trimap[:, :, 0]
+        #trimap = Image.fromarray(trimap)
+
         matte = Image.open(matte_path)
+        if matte.mode == "RGB":
+            matte = np.array(matte)
+            #print(matte.shape)
+            #print(matte.shape)
+            matte = matte[:, :, 0]
+            matte = Image.fromarray(matte)
 
         return (self.image_transform(image), self.trimap_transform(trimap),
                 self.matte_transform(matte))
@@ -124,8 +139,8 @@ class MattingLoader:
                                  matte_transform, self.mode)
         data_loader = torch.utils.data.DataLoader(
             dataset=dataset, batch_size=self.batch_size,
-            shuffle=(self.mode == "train"),
-            num_workers=8, drop_last=False)
+            shuffle=True,
+            num_workers=4, drop_last=False)
         return data_loader
 
 

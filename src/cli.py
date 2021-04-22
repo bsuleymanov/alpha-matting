@@ -13,6 +13,7 @@ import wandb
 import numpy as np
 import tqdm
 from torchvision import transforms
+from torchvision.utils import make_grid
 
 def train_from_folder(
     data_dir="../data",
@@ -22,7 +23,7 @@ def train_from_folder(
     version="mobilenetv2",
     total_step=150000,
     batch_size=8,
-    accumulation_steps=2,
+    accumulation_steps=1,
     n_workers=8,
     learning_rate=0.01,
     lr_decay=0.95,
@@ -39,6 +40,7 @@ def train_from_folder(
     log_path="./logs",
     model_save_path="./models",
     sample_path="./sample_path",
+    input_image_save_path="./input_save",
     test_image_path="../data/dataset/val/image",
     test_mask_path="./test_results",
     test_color_mask_path="./test_color_visualize",
@@ -50,19 +52,23 @@ def train_from_folder(
     dataset="matting",
     semantic_scale=10.0,
     detail_scale=10.0,
-    matte_scale=1.0
+    matte_scale=1.0,
+    visual_debug=False
 ):
-    wandb.init(project="alpha-matting",  entity='bsuleymanov')
+    wandb.init(project="alpha-matting",  entity='bsuleymanov', settings=wandb.Settings(start_method="fork"))
 
     config = wandb.config
 
+    mode = "train" if is_train else "test"
     sample_path = Path(sample_path)
     model_save_path = Path(model_save_path)
+    input_image_save_path = Path(input_image_save_path)
     mkdir_if_empty_or_not_exist(sample_path)
     mkdir_if_empty_or_not_exist(model_save_path)
+    mkdir_if_empty_or_not_exist(input_image_save_path)
 
     dataloader = MattingLoader(image_path, image_size,
-                               batch_size, is_train).loader()
+                               batch_size, mode).loader()
     data_iter = iter(dataloader)
     step_per_epoch = len(dataloader)
     total_epoch = total_step / step_per_epoch
@@ -96,8 +102,12 @@ def train_from_folder(
             data_iter = iter(dataloader)
             images, trimaps_true, mattes_true = next(data_iter)
         images = images.to(device)
+        #print(f"Input min: {images.min()}, Input max: {images.max()}")
         trimaps_true = trimaps_true.to(device)
         mattes_true = mattes_true.to(device)
+
+        if visual_debug:
+            save_image(make_grid(images), str(input_image_save_path / f"{step+1}_input.png"))
 
         #print(trimaps_true.sum())
         #print(trimaps_true.max())
@@ -263,8 +273,8 @@ def inference_from_folder(
 
 
 def main():
-    #train_from_folder()
-    inference_from_folder()
+    train_from_folder()
+    #inference_from_folder()
 
 
 if __name__ == "__main__":
