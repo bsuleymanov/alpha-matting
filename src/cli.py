@@ -80,7 +80,7 @@ def train_from_folder(
     else:
         start = 0
 
-    blurer = GaussianBlurLayer(1, 3).to(device)
+    blurer = GaussianBlurLayer(3, 3).to(device)
     network = MODNet().to(device)
     if parallel:
         network = nn.DataParallel(network)

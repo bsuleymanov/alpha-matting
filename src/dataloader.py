@@ -61,12 +61,18 @@ class MattingDataset:
         #trimap = Image.fromarray(trimap)
 
         matte = Image.open(matte_path)
-        if matte.mode == "RGB":
+        if matte.mode == "L":
             matte = np.array(matte)
             #print(matte.shape)
             #print(matte.shape)
-            matte = matte[:, :, 0]
-            matte = Image.fromarray(matte)
+            matte = np.stack([matte, matte, matte], axis=2)
+            matte = Image.fromarray(matte, mode="RGB")
+        elif matte.mode == "RGBA":
+            matte = np.array(matte)
+            #print(matte.shape)
+            #print(matte.shape)
+            matte = matte[:, :, :3]
+            matte = Image.fromarray(matte, mode="RGB")
 
         return (self.image_transform(image), self.trimap_transform(trimap),
                 self.matte_transform(matte))

@@ -116,7 +116,7 @@ class LRBranch(nn.Module):
                                     stride=1, padding=2)
         self.conv_lr8x = ConvBlock(enc_channels[3], enc_channels[2], kernel_size=5,
                                    stride=1, padding=2)
-        self.conv_lr = ConvBlock(enc_channels[2], 1, kernel_size=3,
+        self.conv_lr = ConvBlock(enc_channels[2], 3, kernel_size=3,
                                    stride=2, padding=1, use_ibn=False, use_relu=False)
 
     def forward(self, image, mode):
@@ -159,7 +159,7 @@ class HRBranch(nn.Module):
         )
         self.conv_hr = nn.Sequential(
             ConvBlock(hr_channels + 3, hr_channels, 3, stride=1, padding=1),
-            ConvBlock(hr_channels, 1, 1, stride=1, padding=0,
+            ConvBlock(hr_channels, 3, 1, stride=1, padding=0,
                       use_ibn=False, use_relu=False),
         )
 
@@ -198,7 +198,7 @@ class FusionBranch(nn.Module):
         self.conv_f = nn.Sequential(
             ConvBlock(hr_channels + 3, int(hr_channels / 2), 3,
                       stride=1, padding=1),
-            ConvBlock(int(hr_channels / 2), 1, 1,
+            ConvBlock(int(hr_channels / 2), 3, 1,
                       stride=1, padding=0, use_ibn=False, use_relu=False)
         )
 
