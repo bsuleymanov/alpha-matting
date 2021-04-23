@@ -22,8 +22,8 @@ def train_from_folder(
     image_size=512,
     version="mobilenetv2",
     total_step=150000,
-    batch_size=8,
-    accumulation_steps=1,
+    batch_size=4,
+    accumulation_steps=2,
     n_workers=8,
     learning_rate=0.01,
     lr_decay=0.95,
@@ -55,7 +55,7 @@ def train_from_folder(
     matte_scale=1.0,
     visual_debug=False
 ):
-    wandb.init(project="alpha-matting",  entity='bsuleymanov', settings=wandb.Settings(start_method="fork"))
+    wandb.init(project="alpha-matting",  entity='bsuleymanov')#, settings=wandb.Settings(start_method="fork"))
 
     config = wandb.config
 
@@ -84,15 +84,13 @@ def train_from_folder(
     network = MODNet().to(device)
     if parallel:
         network = nn.DataParallel(network)
-    #optimizer = torch.optim.Adam(
-    #    filter(lambda p: p.requires_grad, network.parameters()),
-    #    learning_rate, [beta1, beta2]
-    #)
-    optimizer = torch.optim.Adam(network.parameters())
+    optimizer = torch.optim.Adam([
+        {'params': network.backbone.parameters(), 'lr': 1e-4},
+        {'params': iter([param for name, param in network.named_parameters()
+                         if 'backbone' not in name]), "lr": 5e-4}
+    ])
     #optimizer = torch.optim.SGD(network.parameters(), lr=learning_rate, momentum=0.9)
-    lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=int(0.25 * total_epoch), gamma=0.1)
-    if verbose > 0:
-        print(network)
+    #lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=int(0.25 * total_epoch), gamma=0.1)
 
     start_time = time.time()
     for step in range(start, total_step):
@@ -189,7 +187,7 @@ def train_from_folder(
                        str(model_save_path / f"{step + 1}_network.pth"))
 
         #if (step + 1) % step_per_epoch:
-            #lr_scheduler.step()
+        #    lr_scheduler.step()
 
 
 def inference_from_folder(
@@ -215,7 +213,7 @@ def inference_from_folder(
     image_path="../data/dataset/val/",
     mask_path="../data/dataset/train/seg",
     log_path="./logs",
-    model_load_path="./models",
+    model_load_path="./models_adam_23042021",
     inference_path ="./result_submission",
     test_image_path="../data/dataset/val/image",
     test_mask_path="./test_results",
@@ -240,7 +238,7 @@ def inference_from_folder(
     data_iter = iter(dataloader)
 
     network = MODNet(backbone_pretrained=False).to(device)
-    network.load_state_dict(torch.load(f"{model_load_path}/31109_network.pth"))
+    network.load_state_dict(torch.load(f"{model_load_path}/2393_network.pth"))
     network.eval()
     #network.freeze_bn()
 

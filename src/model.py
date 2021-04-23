@@ -242,7 +242,7 @@ class MODNet(nn.Module):
             self.backbone.load_pretrained_ckpt()
 
         #self.freeze_bn()
-        self.freeze_backbone()
+        #self.freeze_backbone()
 
     def forward(self, image, mode):
         semantic_pred, lr8x, [enc2x, enc4x] = self.lr_branch(image, mode)
