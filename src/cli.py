@@ -35,7 +35,7 @@ def train_from_folder(
     is_train=True,
     parallel=False,
     use_tensorboard=False,
-    image_path="../data/dataset/train/",
+    image_path="../data/one_image_dataset/train/",
     mask_path="../data/dataset/train/seg",
     log_path="./logs",
     model_save_path="./models",
@@ -143,7 +143,7 @@ def train_from_folder(
 
         # optimization step
         loss = semantic_loss + detail_loss + matte_loss
-        loss = semantic_loss + matte_loss
+        #loss = semantic_loss + matte_loss
         loss.backward()
 
         if (step + 1) % accumulation_steps == 0:  # Wait for several backward steps
