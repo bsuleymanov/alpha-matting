@@ -22,8 +22,8 @@ def train_from_folder(
     image_size=512,
     version="mobilenetv2",
     total_step=150000,
-    batch_size=4,
-    accumulation_steps=2,
+    batch_size=8,
+    accumulation_steps=1,
     n_workers=8,
     learning_rate=0.01,
     lr_decay=0.95,
@@ -73,7 +73,7 @@ def train_from_folder(
     step_per_epoch = len(dataloader)
     total_epoch = total_step / step_per_epoch
     print(total_epoch)
-    model_save_step = int(model_save_step * step_per_epoch)
+    model_save_step = 500
 
     if pretrained_model:
         start = pretrained_model + 1
@@ -82,15 +82,18 @@ def train_from_folder(
 
     blurer = GaussianBlurLayer(3, 3).to(device)
     network = MODNet().to(device)
+    network.freeze_backbone()
     if parallel:
         network = nn.DataParallel(network)
-    optimizer = torch.optim.Adam([
-        {'params': network.backbone.parameters(), 'lr': 1e-4},
-        {'params': iter([param for name, param in network.named_parameters()
-                         if 'backbone' not in name]), "lr": 5e-4}
-    ])
+    #optimizer = torch.optim.Adam([
+    #    {'params': network.backbone.parameters(), 'lr': 1e-4},
+    #    {'params': iter([param for name, param in network.named_parameters()
+    #                     if 'backbone' not in name]), "lr": 5e-4}
+    #])
+    optimizer = torch.optim.AdamW(network.parameters(), lr=5e-4)
     #optimizer = torch.optim.SGD(network.parameters(), lr=learning_rate, momentum=0.9)
     #lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=int(0.25 * total_epoch), gamma=0.1)
+    lr_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=0.5)
 
     start_time = time.time()
     for step in range(start, total_step):
@@ -146,6 +149,8 @@ def train_from_folder(
         #loss = semantic_loss + matte_loss
         loss.backward()
 
+        lr_scheduler.step(loss.item())
+
         if (step + 1) % accumulation_steps == 0:  # Wait for several backward steps
             optimizer.step()
             optimizer.zero_grad()
@@ -186,8 +191,8 @@ def train_from_folder(
             torch.save(network.state_dict(),
                        str(model_save_path / f"{step + 1}_network.pth"))
 
-        #if (step + 1) % step_per_epoch:
-        #    lr_scheduler.step()
+        if (step + 1) % step_per_epoch:
+            lr_scheduler.step()
 
 
 def inference_from_folder(
