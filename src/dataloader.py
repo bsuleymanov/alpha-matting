@@ -1,6 +1,7 @@
 import torch
 from torchvision import transforms
 from PIL import Image
+import jpeg4py as jpeg
 from pathlib import Path
 from torchvision.transforms.functional import InterpolationMode
 import numpy as np
@@ -52,7 +53,8 @@ class MattingDataset:
     def __getitem__(self, index):
         dataset = self.train_dataset if self.mode == "train" else self.test_dataset
         image_path, trimap_path, matte_path = dataset[index]
-        image = Image.open(image_path)
+        image = jpeg.JPEG(image_path).decode()
+        #image = Image.open(image_path)
         trimap = Image.open(trimap_path)
         #trimap = np.array(trimap)
         #if len(trimap) == 3:
@@ -106,7 +108,8 @@ class MattingTestDataset:
     def __getitem__(self, index):
         dataset = self.test_dataset
         image_path = dataset[index]
-        image = Image.open(image_path)
+        image = jpeg.JPEG(image_path).decode()
+        #image = Image.open(image_path)
         size = image.size
 
         return self.image_transform(image), image_path, size
