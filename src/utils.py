@@ -4,6 +4,9 @@ from pathlib import Path
 import torch
 import torchvision
 from PIL import Image
+import random
+import cv2
+
 
 def generate_trimap_from_alpha(masks):
     batch_size, height, width = masks.shape
@@ -14,6 +17,23 @@ def generate_trimap_from_alpha(masks):
         eroded_mask = grey_erosion(masks[i, ...], size=(side, side))
         boundaries[i, np.where(dilated_mask - eroded_mask != 0)] = 1
     return boundaries
+
+def generate_trimap(mattes):
+    batch_size, height, width = mattes.shape
+    trimaps = np.zeros_like(mattes)
+    for i, matte in enumerate(range(batch_size)):
+        kernel_size = random.choice(range(1, 5))
+        iterations = random.randint(1, 20)
+        kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE,
+                                           (kernel_size, kernel_size))
+        dilated = cv2.dilate(matte, kernel, iterations)
+        eroded = cv2.erode(matte, kernel, iterations)
+        trimap = np.zeros_like(matte)
+        trimap.fill(128)
+        trimap[eroded >= 255] = 255
+        trimap[dilated <= 0] = 0
+        trimaps[i] = trimap
+    return trimaps
 
 
 def mkdir_if_empty_or_not_exist(dir_name):
