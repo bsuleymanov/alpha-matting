@@ -127,7 +127,9 @@ class MattingLoader:
 
     def transform(self):
         image_transform = transforms.Compose([
-            transforms.Resize((1024, self.image_size)),
+            #transforms.Resize((1024, self.image_size)),
+            transforms.Resize(256),
+            transforms.RandomCrop(256),
             transforms.ToTensor(),
             transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
         ])

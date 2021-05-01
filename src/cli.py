@@ -19,7 +19,7 @@ def train_from_folder(
     data_dir="../data",
     results_dir="../data/results",
     models_dir="../",
-    image_size=512,
+    image_size=256,
     version="mobilenetv2",
     total_step=150000,
     batch_size=1,
@@ -90,7 +90,8 @@ def train_from_folder(
     #    {'params': iter([param for name, param in network.named_parameters()
     #                     if 'backbone' not in name]), "lr": 5e-4}
     #])
-    optimizer = torch.optim.AdamW(network.parameters(), lr=5e-4)
+    #optimizer = torch.optim.AdamW(network.parameters(), lr=5e-4)
+    optimizer = torch.optim.Adam(network.parameters())
     #optimizer = torch.optim.SGD(network.parameters(), lr=learning_rate, momentum=0.9)
     #lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=int(0.25 * total_epoch), gamma=0.1)
     lr_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=0.5)
