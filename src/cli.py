@@ -1,4 +1,4 @@
-from dataloader import MattingLoader, MattingTestLoader
+from dataloader import MaadaaMattingLoader, MattingTestLoader
 from utils import mkdir_if_empty_or_not_exist
 import time
 import datetime
@@ -14,6 +14,9 @@ import numpy as np
 import tqdm
 from torchvision import transforms
 from torchvision.utils import make_grid
+from matplotlib import pyplot as plt
+import sys
+
 
 def train_from_folder(
     data_dir="../data",
@@ -35,7 +38,7 @@ def train_from_folder(
     is_train=True,
     parallel=False,
     use_tensorboard=False,
-    image_path="../data/one_image_dataset/train/",
+    image_path="../data/dataset/train/",
     mask_path="../data/dataset/train/seg",
     log_path="./logs",
     model_save_path="./models",
@@ -67,7 +70,7 @@ def train_from_folder(
     mkdir_if_empty_or_not_exist(model_save_path)
     mkdir_if_empty_or_not_exist(input_image_save_path)
 
-    dataloader = MattingLoader(image_path, image_size,
+    dataloader = MaadaaMattingLoader(image_path, image_size,
                                batch_size, mode).loader()
     data_iter = iter(dataloader)
     step_per_epoch = len(dataloader)
@@ -103,6 +106,13 @@ def train_from_folder(
         except:
             data_iter = iter(dataloader)
             images, trimaps_true, mattes_true = next(data_iter)
+        print(trimaps_true.size())
+        print(np.unique(trimaps_true[0]))
+        plt.imshow(trimaps_true[0] / 255.)
+
+        plt.show()
+        sys.exit()
+
         images = images.to(device)
         #print(f"Input min: {images.min()}, Input max: {images.max()}")
         trimaps_true = trimaps_true.to(device)
@@ -118,7 +128,7 @@ def train_from_folder(
         network.freeze_bn()
         # semantic loss
         semantics_pred, details_pred, mattes_pred = network(images, "train")
-        boundaries = (trimaps_true == 0) + (trimaps_true == 1)
+        boundaries = (trimaps_true == 0) + (trimaps_true == 255)
         #boundaries =
         #print((boundaries == 0).sum())
         semantics_true = F.interpolate(mattes_true, scale_factor=1/16, mode="bilinear")

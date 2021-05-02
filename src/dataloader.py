@@ -5,10 +5,12 @@ import jpeg4py as jpeg
 from pathlib import Path
 from torchvision.transforms.functional import InterpolationMode
 import numpy as np
+import albumentations as A
+from utils import generate_trimap
 
 
 
-class MattingDataset:
+class MattingDatasetDeprecated:
     def __init__(self, image_dir, image_transform, trimap_transform,
                  matte_transform, mode, verbose=0):
         self.image_list = list(map(str, Path(image_dir).rglob("*.jpg")))
@@ -118,7 +120,7 @@ class MattingTestDataset:
         return self.n_images
 
 
-class MattingLoader:
+class MattingLoaderDeprecated:
     def __init__(self, image_path, image_size, batch_size, mode):
         self.image_dir = Path(image_path)
         self.image_size = image_size
@@ -146,7 +148,7 @@ class MattingLoader:
 
     def loader(self):
         image_transform, trimap_transform, matte_transform = self.transform()
-        dataset = MattingDataset(self.image_dir, image_transform, trimap_transform,
+        dataset = MattingDatasetDeprecated(self.image_dir, image_transform, trimap_transform,
                                  matte_transform, self.mode)
         data_loader = torch.utils.data.DataLoader(
             dataset=dataset, batch_size=self.batch_size,
@@ -190,9 +192,114 @@ class MattingTestLoader:
 
 
 
+class MaadaaMattingDataset:
+    def __init__(self, image_dir, shared_transform,  image_transform,
+                 matte_transform=None, trimap_transform=None, mode="train",
+                 verbose=0):
+        self.image_list = list(map(str, Path(image_dir).rglob("*.jpg")))
+        self.matte_list = list(map(str, Path(image_dir).rglob("*.png")))
+        # hack
+        self.image_list = [x[:-4]+".jpg" for x in self.matte_list]
+        print(len(self.image_list), len(self.matte_list))
+        self.image_transform = image_transform
+        self.shared_transform = shared_transform
+        self.matte_transform = matte_transform
+        self.trimap_transform = trimap_transform
+        self.train_dataset = []
+        self.test_dataset = []
+        self.mode = mode
+        self.verbose = verbose
+
+        self.preprocess()
+
+        if mode == "train":
+            self.n_images = len(self.train_dataset)
+        else:
+            self.n_images = len(self.test_dataset)
+
+    def preprocess(self):
+        for i in range(len(self.image_list)):
+            image_path = self.image_list[i]
+            matte_path = self.matte_list[i]
+            if self.verbose > 0:
+                print(image_path, matte_path)
+            if self.mode == "train":
+                self.train_dataset.append([image_path, matte_path])
+            else:
+                self.test_dataset.append([image_path, matte_path])
+
+        if self.verbose > 0:
+            print("Finished preprocessing the MaadaaMatting dataset...")
+
+    def __getitem__(self, index):
+        dataset = self.train_dataset if self.mode == "train" else self.test_dataset
+        image_path, matte_path = dataset[index]
+        image = jpeg.JPEG(image_path).decode()
+
+        matte = Image.open(matte_path)
+        if matte.mode == "L":
+            matte = np.array(matte)
+            matte = np.stack([matte, matte, matte], axis=2)
+            #matte = Image.fromarray(matte, mode="RGB")
+        elif matte.mode == "RGBA":
+            matte = np.array(matte)
+            matte = matte[:, :, :3]
+            #matte = Image.fromarray(matte, mode="RGB")
+
+        #image, matte = self.shared_transform(image=image, mask=matte).values()
+        image, matte = self.shared_transform(image, matte)
+        trimap = generate_trimap(matte)
+
+        image = self.image_transform(image)
+        matte = self.matte_transform(matte)
+        trimap = self.trimap_transform(trimap)
+
+        return (image, trimap, matte)
+
+    def __len__(self):
+        return self.n_images
 
 
+class MaadaaMattingLoader:
+    def __init__(self, image_path, image_size, batch_size, mode):
+        self.image_dir = Path(image_path)
+        self.image_size = image_size
+        self.batch_size = batch_size
+        self.mode = mode
 
+    def transform(self):
+        # image_transform = transforms.Compose([
+        #     #transforms.Resize((1024, self.image_size)),
+        #     transforms.Resize(256),
+        #     transforms.RandomCrop(256),
+        #     transforms.ToTensor(),
+        #     transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
+        # ])
+        shared_transform = lambda x, y: (x, y)
+        image_transform = lambda x: x
+        trimap_transform = lambda x: x
+        matte_transform = lambda x: x
+
+        # trimap_transform = transforms.Compose([
+        #     transforms.Resize((self.image_size, self.image_size), interpolation=InterpolationMode.NEAREST),
+        #     transforms.ToTensor(),
+        # ])
+        # matte_transform = transforms.Compose([
+        #     transforms.Resize((self.image_size, self.image_size)),
+        #     transforms.ToTensor(),
+        # ])
+
+        return shared_transform, image_transform, trimap_transform, matte_transform
+
+    def loader(self):
+        shared_transform, image_transform, trimap_transform, matte_transform = self.transform()
+        dataset = MaadaaMattingDataset(self.image_dir, shared_transform, image_transform,
+                                       matte_transform, trimap_transform, self.mode)
+        data_loader = torch.utils.data.DataLoader(
+            dataset=dataset, batch_size=self.batch_size,
+            shuffle=True,
+            num_workers=4, drop_last=False)
+        return data_loader
 
 
 
