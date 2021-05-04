@@ -71,7 +71,7 @@ def train_from_folder(
     mkdir_if_empty_or_not_exist(input_image_save_path)
 
     dataloader = MaadaaMattingLoader(image_path, image_size,
-                               batch_size, mode).loader()
+                                     batch_size, mode).loader()
     data_iter = iter(dataloader)
     step_per_epoch = len(dataloader)
     total_epoch = total_step / step_per_epoch
@@ -97,26 +97,28 @@ def train_from_folder(
     optimizer = torch.optim.Adam(network.parameters())
     #optimizer = torch.optim.SGD(network.parameters(), lr=learning_rate, momentum=0.9)
     #lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=int(0.25 * total_epoch), gamma=0.1)
-    lr_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=0.5)
+    #lr_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=0.5)
 
     start_time = time.time()
     for step in range(start, total_step):
+        print(f'step {step}')
         try:
             images, trimaps_true, mattes_true = next(data_iter)
         except:
             data_iter = iter(dataloader)
             images, trimaps_true, mattes_true = next(data_iter)
-        print(trimaps_true.size())
-        print(np.unique(trimaps_true[0]))
-        plt.imshow(trimaps_true[0] / 255.)
+        #print(trimaps_true.size())
+        #print(np.unique(trimaps_true[0]))
+        #plt.imshow(trimaps_true[0])
 
-        plt.show()
-        sys.exit()
+        #plt.show()
+        #sys.exit()
 
         images = images.to(device)
         #print(f"Input min: {images.min()}, Input max: {images.max()}")
         trimaps_true = trimaps_true.to(device)
         mattes_true = mattes_true.to(device)
+        #mattes_true = mattes_true / 255.
 
         if visual_debug:
             save_image(make_grid(images), str(input_image_save_path / f"{step+1}_input.png"))
@@ -128,9 +130,12 @@ def train_from_folder(
         network.freeze_bn()
         # semantic loss
         semantics_pred, details_pred, mattes_pred = network(images, "train")
-        boundaries = (trimaps_true == 0) + (trimaps_true == 255)
+        boundaries = (trimaps_true == 0) + (trimaps_true == 1)
+        print(boundaries.sum())
+        #trimaps_true = trimaps_true / 255.
         #boundaries =
         #print((boundaries == 0).sum())
+        print(boundaries.dtype)
         semantics_true = F.interpolate(mattes_true, scale_factor=1/16, mode="bilinear")
         semantics_true = blurer(semantics_true)
         #print(semantics_true.size(), semantics_pred.size())
@@ -138,6 +143,8 @@ def train_from_folder(
         semantic_loss = semantic_scale * semantic_loss
 
         # detail loss
+        print(trimaps_true.dtype)
+        print(details_pred.dtype)
         boundary_detail_pred = torch.where(boundaries, trimaps_true, details_pred)
         details_true = torch.where(boundaries, trimaps_true, mattes_true)
         #print(boundaries.size(), boundaries.sum())
@@ -160,7 +167,7 @@ def train_from_folder(
         #loss = semantic_loss + matte_loss
         loss.backward()
 
-        lr_scheduler.step(loss.item())
+        #lr_scheduler.step(loss.item())
 
         if (step + 1) % accumulation_steps == 0:  # Wait for several backward steps
             optimizer.step()
@@ -202,8 +209,8 @@ def train_from_folder(
             torch.save(network.state_dict(),
                        str(model_save_path / f"{step + 1}_network.pth"))
 
-        if (step + 1) % step_per_epoch:
-            lr_scheduler.step()
+        #if (step + 1) % step_per_epoch:
+            #lr_scheduler.step()
 
 
 def inference_from_folder(

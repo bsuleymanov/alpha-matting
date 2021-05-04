@@ -6,6 +6,7 @@ from pathlib import Path
 from torchvision.transforms.functional import InterpolationMode
 import numpy as np
 import albumentations as A
+from albumentations.pytorch import ToTensorV2, ToTensor
 from utils import generate_trimap
 
 
@@ -234,7 +235,7 @@ class MaadaaMattingDataset:
     def __getitem__(self, index):
         dataset = self.train_dataset if self.mode == "train" else self.test_dataset
         image_path, matte_path = dataset[index]
-        image = jpeg.JPEG(image_path).decode()
+        image = jpeg.JPEG(image_path).decode() / 255.
 
         matte = Image.open(matte_path)
         if matte.mode == "L":
@@ -246,13 +247,14 @@ class MaadaaMattingDataset:
             matte = matte[:, :, :3]
             #matte = Image.fromarray(matte, mode="RGB")
 
-        #image, matte = self.shared_transform(image=image, mask=matte).values()
-        image, matte = self.shared_transform(image, matte)
+        #matte = matte / 255.
+
+        image, matte = self.shared_transform(image=image, mask=matte).values()
         trimap = generate_trimap(matte)
 
-        image = self.image_transform(image)
-        matte = self.matte_transform(matte)
-        trimap = self.trimap_transform(trimap)
+        image = self.image_transform(image=image)['image']
+        matte = self.matte_transform(image=matte)['image']
+        trimap = self.trimap_transform(image=trimap)['image']
 
         return (image, trimap, matte)
 
@@ -268,26 +270,24 @@ class MaadaaMattingLoader:
         self.mode = mode
 
     def transform(self):
-        # image_transform = transforms.Compose([
-        #     #transforms.Resize((1024, self.image_size)),
-        #     transforms.Resize(256),
-        #     transforms.RandomCrop(256),
-        #     transforms.ToTensor(),
-        #     transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
-        # ])
-        shared_transform = lambda x, y: (x, y)
-        image_transform = lambda x: x
-        trimap_transform = lambda x: x
-        matte_transform = lambda x: x
-
-        # trimap_transform = transforms.Compose([
-        #     transforms.Resize((self.image_size, self.image_size), interpolation=InterpolationMode.NEAREST),
-        #     transforms.ToTensor(),
-        # ])
-        # matte_transform = transforms.Compose([
-        #     transforms.Resize((self.image_size, self.image_size)),
-        #     transforms.ToTensor(),
-        # ])
+        shared_transform = A.Compose([
+            A.SmallestMaxSize(self.image_size),
+            A.RandomCrop(self.image_size, self.image_size)
+        ])
+        image_transform = A.Compose([
+            #A.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
+            #ToTensorV2(),
+            ToTensor(normalize={
+                "mean": (0.5, 0.5, 0.5),
+                "std": (0.5, 0.5, 0.5)
+            })
+        ])
+        trimap_transform = A.Compose([
+            ToTensor(),
+        ])
+        matte_transform = A.Compose([
+            ToTensor(),
+        ])
 
         return shared_transform, image_transform, trimap_transform, matte_transform
 
