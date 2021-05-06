@@ -1,5 +1,6 @@
-from dataloader import MaadaaMattingLoader, MattingTestLoader
-from utils import mkdir_if_empty_or_not_exist
+from dataloader import MaadaaMattingLoader, MattingTestLoader, \
+                       MattingLoaderDeprecated
+from utils import mkdir_if_empty_or_not_exist, generate_trimap_kornia
 import time
 import datetime
 from pathlib import Path
@@ -18,6 +19,7 @@ from matplotlib import pyplot as plt
 import sys
 
 
+
 def train_from_folder(
     data_dir="../data",
     results_dir="../data/results",
@@ -25,7 +27,7 @@ def train_from_folder(
     image_size=256,
     version="mobilenetv2",
     total_step=150000,
-    batch_size=1,
+    batch_size=3,
     accumulation_steps=1,
     n_workers=8,
     learning_rate=0.01,
@@ -71,7 +73,7 @@ def train_from_folder(
     mkdir_if_empty_or_not_exist(input_image_save_path)
 
     dataloader = MaadaaMattingLoader(image_path, image_size,
-                                     batch_size, mode).loader()
+                               batch_size, mode).loader()
     data_iter = iter(dataloader)
     step_per_epoch = len(dataloader)
     total_epoch = total_step / step_per_epoch
@@ -94,19 +96,22 @@ def train_from_folder(
     #                     if 'backbone' not in name]), "lr": 5e-4}
     #])
     #optimizer = torch.optim.AdamW(network.parameters(), lr=5e-4)
-    optimizer = torch.optim.Adam(network.parameters())
+    #optimizer = torch.optim.Adam(network.parameters())
+    optimizer = torch.optim.Adam([e for e in network.parameters()
+    							  if e.requires_grad])
     #optimizer = torch.optim.SGD(network.parameters(), lr=learning_rate, momentum=0.9)
     #lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=int(0.25 * total_epoch), gamma=0.1)
     #lr_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=0.5)
 
     start_time = time.time()
     for step in range(start, total_step):
-        print(f'step {step}')
+        #print(f'step {step}')
         try:
-            images, trimaps_true, mattes_true = next(data_iter)
+            images, mattes_true = next(data_iter)
         except:
             data_iter = iter(dataloader)
-            images, trimaps_true, mattes_true = next(data_iter)
+            images, mattes_true = next(data_iter)
+
         #print(trimaps_true.size())
         #print(np.unique(trimaps_true[0]))
         #plt.imshow(trimaps_true[0])
@@ -114,11 +119,16 @@ def train_from_folder(
         #plt.show()
         #sys.exit()
 
-        images = images.to(device)
+        images = images.to(device).float()
         #print(f"Input min: {images.min()}, Input max: {images.max()}")
-        trimaps_true = trimaps_true.to(device)
-        mattes_true = mattes_true.to(device)
+        #trimaps_true = trimaps_true.to(device)
+        mattes_true = mattes_true.to(device).float()
+        trimaps_true = generate_trimap_kornia(mattes_true).float()
         #mattes_true = mattes_true / 255.
+
+        #print(images.shape, trimaps_true.shape, mattes_true.shape)
+
+        #print(images.dtype, trimaps_true.dtype, mattes_true.dtype)
 
         if visual_debug:
             save_image(make_grid(images), str(input_image_save_path / f"{step+1}_input.png"))
@@ -131,11 +141,11 @@ def train_from_folder(
         # semantic loss
         semantics_pred, details_pred, mattes_pred = network(images, "train")
         boundaries = (trimaps_true == 0) + (trimaps_true == 1)
-        print(boundaries.sum())
+        #print(boundaries.sum())
         #trimaps_true = trimaps_true / 255.
         #boundaries =
         #print((boundaries == 0).sum())
-        print(boundaries.dtype)
+        #print(boundaries.dtype)
         semantics_true = F.interpolate(mattes_true, scale_factor=1/16, mode="bilinear")
         semantics_true = blurer(semantics_true)
         #print(semantics_true.size(), semantics_pred.size())
@@ -143,8 +153,8 @@ def train_from_folder(
         semantic_loss = semantic_scale * semantic_loss
 
         # detail loss
-        print(trimaps_true.dtype)
-        print(details_pred.dtype)
+        #print(trimaps_true.dtype)
+        #print(details_pred.dtype)
         boundary_detail_pred = torch.where(boundaries, trimaps_true, details_pred)
         details_true = torch.where(boundaries, trimaps_true, mattes_true)
         #print(boundaries.size(), boundaries.sum())
@@ -165,13 +175,19 @@ def train_from_folder(
         # optimization step
         loss = semantic_loss + detail_loss + matte_loss
         #loss = semantic_loss + matte_loss
+        #loss = semantic_loss
+        #loss = matte_loss
+
+        #print(semantic_loss.item(), detail_loss.item(), matte_loss.item())
         loss.backward()
+        optimizer.step()
+        optimizer.zero_grad()
 
         #lr_scheduler.step(loss.item())
 
-        if (step + 1) % accumulation_steps == 0:  # Wait for several backward steps
-            optimizer.step()
-            optimizer.zero_grad()
+        #if (step + 1) % accumulation_steps == 0:  # Wait for several backward steps
+        #    optimizer.step()
+        #    optimizer.zero_grad()
 
         # logging
         if verbose > 0:

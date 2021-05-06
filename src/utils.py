@@ -6,6 +6,7 @@ import torchvision
 from PIL import Image
 import random
 import cv2
+from kornia.morphology import dilation, erosion
 
 
 def generate_trimap_from_alpha(masks):
@@ -30,6 +31,17 @@ def generate_trimap(matte):
     trimap[eroded >= 255] = 255
     trimap[dilated <= 0] = 0
     return trimap
+
+
+def generate_trimap_kornia(matte):
+    kernel_size = random.choice(range(3, 26, 2))
+    kernel = torch.ones(kernel_size, kernel_size).to('cuda')
+    dilated = dilation(matte, kernel)
+    eroded = erosion(matte, kernel)
+    trimap = torch.ones_like(matte) * 128
+    trimap[eroded >= 255] = 255
+    trimap[dilated <= 0] = 0
+    return trimap / 255.
 
 
 def mkdir_if_empty_or_not_exist(dir_name):
