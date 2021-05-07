@@ -1,5 +1,5 @@
 from dataloader import MaadaaMattingLoader, MattingTestLoader, \
-                       MattingLoaderDeprecated
+                       MattingLoaderDeprecated, MaadaaMattingLoaderV2
 from utils import mkdir_if_empty_or_not_exist, generate_trimap_kornia
 import time
 import datetime
