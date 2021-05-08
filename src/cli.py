@@ -122,13 +122,17 @@ def train_from_folder(
 
         #plt.show()
         #sys.exit()
-        plt.figure()
-        plt.imshow(foregrounds[0].permute(1, 2, 0))
-        plt.show()
-
-        plt.figure()
-        plt.imshow(backgrounds[0].permute(1, 2, 0))
-        plt.show()
+        # plt.figure()
+        # plt.imshow(foregrounds[0].permute(1, 2, 0))
+        # plt.show()
+        #
+        # plt.figure()
+        # plt.imshow(backgrounds[0].permute(1, 2, 0))
+        # plt.show()
+        #
+        # plt.figure()
+        # plt.imshow(images[0].permute(1, 2, 0))
+        # plt.show()
 
         images = images.to(device).float()
         #print(f"Input min: {images.min()}, Input max: {images.max()}")

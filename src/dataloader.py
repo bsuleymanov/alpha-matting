@@ -589,10 +589,11 @@ class MaadaaMattingDatasetWOTrimapV2:
         matte = self.matte_transform(image=matte)#['image']
         composition, matte = self.shared_post_transform(image=composition, mask=matte).values()
 
-        foreground = composition[:, :, :fg_channels]
-        background = composition[:, :, fg_channels:]
-
-        #composition = matte * foreground + (1 - matte) * background
+        foreground = composition[:fg_channels, :, :]
+        background = composition[fg_channels:, :, :]
+        matte = matte.permute(2, 0, 1)
+        #print(matte.shape, foreground.shape, background.shape)
+        composition = matte * foreground + (1 - matte) * background
 
         return (composition, matte, foreground, background)
 
