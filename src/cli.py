@@ -17,6 +17,7 @@ from torchvision import transforms
 from torchvision.utils import make_grid
 from matplotlib import pyplot as plt
 import sys
+import cv2
 
 
 
@@ -41,6 +42,8 @@ def train_from_folder(
     parallel=False,
     use_tensorboard=False,
     image_path="../data/dataset/train/",
+    foreground_path="../data/foregrounds/train/",
+    background_path="../data/backgrounds/",
     mask_path="../data/dataset/train/seg",
     log_path="./logs",
     model_save_path="./models",
@@ -72,8 +75,9 @@ def train_from_folder(
     mkdir_if_empty_or_not_exist(model_save_path)
     mkdir_if_empty_or_not_exist(input_image_save_path)
 
-    dataloader = MaadaaMattingLoader(image_path, image_size,
-                               batch_size, mode).loader()
+    dataloader = MaadaaMattingLoaderV2(image_path, foreground_path,
+                                       background_path, image_size,
+                                       batch_size, mode).loader()
     data_iter = iter(dataloader)
     step_per_epoch = len(dataloader)
     total_epoch = total_step / step_per_epoch
@@ -107,10 +111,10 @@ def train_from_folder(
     for step in range(start, total_step):
         #print(f'step {step}')
         try:
-            images, mattes_true = next(data_iter)
+            images, mattes_true, foregrounds, backgrounds = next(data_iter)
         except:
             data_iter = iter(dataloader)
-            images, mattes_true = next(data_iter)
+            images, mattes_true, foregrounds, backgrounds = next(data_iter)
 
         #print(trimaps_true.size())
         #print(np.unique(trimaps_true[0]))
@@ -118,6 +122,13 @@ def train_from_folder(
 
         #plt.show()
         #sys.exit()
+        plt.figure()
+        plt.imshow(foregrounds[0].permute(1, 2, 0))
+        plt.show()
+
+        plt.figure()
+        plt.imshow(backgrounds[0].permute(1, 2, 0))
+        plt.show()
 
         images = images.to(device).float()
         #print(f"Input min: {images.min()}, Input max: {images.max()}")

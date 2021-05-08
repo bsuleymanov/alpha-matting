@@ -501,16 +501,17 @@ class MaadaaMattingLoader:
 
 
 class MaadaaMattingDatasetWOTrimapV2:
-    def __init__(self, image_dir, shared_pre_transform, composition_transform=None,
+    def __init__(self, image_dir, foreground_dir, background_dir,
+                 shared_pre_transform, composition_transform=None,
                  foreground_transform=None, background_transform=None,
                  matte_transform=None, shared_post_transform=None,
                  bg_per_fg=10, mode="train", verbose=0):
         self.bg_per_fg = bg_per_fg
-        #self.foreground_list = list(map(str, Path(image_dir).rglob("*_foreground.jpg")))
-        self.background_list = list(map(str, Path(image_dir).rglob("*_background.jpg")))
+        self.foreground_list = list(map(str, Path(foreground_dir).rglob("*_foreground.jpg")))
+        self.background_list = list(map(str, Path(background_dir).rglob("*.jpg")))
         self.matte_list = list(map(str, Path(image_dir).rglob("*.png")))
         # hack
-        self.foreground_list = [x[:-4]+"_foreground.jpg" for x in self.matte_list]
+        #self.foreground_list = [x[:-4]+"_foreground.jpg" for x in self.matte_list]
         print(len(self.foreground_list), len(self.background_list), len(self.matte_list))
 
         self.shared_pre_transform = shared_pre_transform
@@ -536,8 +537,8 @@ class MaadaaMattingDatasetWOTrimapV2:
         for i in range(len(self.foreground_list)):
             foreground_path = self.foreground_list[i]
             matte_path = self.matte_list[i]
-            current_background_paths = random.sample(background_paths, bg_per_fg)
-            for background_path in range(current_background_paths):
+            current_background_paths = random.sample(self.background_list, bg_per_fg)
+            for background_path in current_background_paths:
                 if self.verbose > 0:
                     print(foreground_path, background_path, matte_path)
                 if self.mode == "train":
@@ -569,31 +570,42 @@ class MaadaaMattingDatasetWOTrimapV2:
         foreground = foreground / 255.
         background = background / 255.
 
-        foreground = self.foreground_transform(image=foreground)["image"]
-        background = self.background_transform(image=background)["image"]
+        foreground = self.foreground_transform(image=foreground)#["image"]
+        background = self.background_transform(image=background)#["image"]
+
 
         height, width = foreground.shape[:2]
+        background = cv2.resize(background, dsize=(width, height), interpolation=cv2.INTER_CUBIC)
         fg_channels = foreground.shape[2]
         bg_channels = background.shape[2]
         composition = np.zeros((height, width, fg_channels + bg_channels))
         composition[:, :, :fg_channels] = foreground
         composition[:, :, fg_channels:] = background
-        del foreground, background
+        #composition = matte * foreground + (1 - matte) * background
+        #del foreground, background
 
         composition, matte = self.shared_pre_transform(image=composition, mask=matte).values()
-        composition = self.composition_transform(image=image)['image']
-        matte = self.matte_transform(image=matte)['image']
+        #composition = self.composition_transform(image=composition)['image']
+        matte = self.matte_transform(image=matte)#['image']
         composition, matte = self.shared_post_transform(image=composition, mask=matte).values()
 
-        return (composition, matte)
+        foreground = composition[:, :, :fg_channels]
+        background = composition[:, :, fg_channels:]
+
+        #composition = matte * foreground + (1 - matte) * background
+
+        return (composition, matte, foreground, background)
 
     def __len__(self):
         return self.n_images
 
 
 class MaadaaMattingLoaderV2:
-    def __init__(self, image_path, image_size, batch_size, mode):
+    def __init__(self, image_path, foreground_path, background_path,
+                 image_size, batch_size, mode):
         self.image_dir = Path(image_path)
+        self.foreground_dir = Path(foreground_path)
+        self.background_dir = Path(background_path)
         self.image_size = image_size
         self.batch_size = batch_size
         self.mode = mode
@@ -606,12 +618,14 @@ class MaadaaMattingLoaderV2:
         composition_transform = A.Compose([
             A.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
         ])
-        foreground_transform = A.Compose([
-            A.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
-        ])
-        background_transform = A.Compose([
-            A.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
-        ])
+        #foreground_transform = A.Compose([
+        #    A.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
+        #])
+        #background_transform = A.Compose([
+        #    A.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
+        #])
+        foreground_transform = lambda image: image
+        background_transform = lambda image: image
         matte_transform = lambda image: image#A.Compose([])
         shared_post_transform = A.Compose([
             ToTensorV2(),
@@ -625,6 +639,7 @@ class MaadaaMattingLoaderV2:
          foreground_transform, background_transform,
          matte_transform, shared_post_transform) = self.transform()
         dataset = MaadaaMattingDatasetWOTrimapV2(
+            self.image_dir, self.foreground_dir, self.background_dir,
             shared_pre_transform, composition_transform,
             foreground_transform, background_transform,
             matte_transform, shared_post_transform, self.mode)
