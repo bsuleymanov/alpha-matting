@@ -116,67 +116,28 @@ def train_from_folder(
             data_iter = iter(dataloader)
             images, mattes_true, foregrounds, backgrounds = next(data_iter)
 
-        #print(trimaps_true.size())
-        #print(np.unique(trimaps_true[0]))
-        #plt.imshow(trimaps_true[0])
-
-        #plt.show()
-        #sys.exit()
-        # plt.figure()
-        # plt.imshow(foregrounds[0].permute(1, 2, 0))
-        # plt.show()
-        #
-        # plt.figure()
-        # plt.imshow(backgrounds[0].permute(1, 2, 0))
-        # plt.show()
-        #
-        # plt.figure()
-        # plt.imshow(images[0].permute(1, 2, 0))
-        # plt.show()
-
         images = images.to(device).float()
-        #print(f"Input min: {images.min()}, Input max: {images.max()}")
-        #trimaps_true = trimaps_true.to(device)
         mattes_true = mattes_true.to(device).float()
         trimaps_true = generate_trimap_kornia(mattes_true).float()
-        #mattes_true = mattes_true / 255.
-
-        #print(images.shape, trimaps_true.shape, mattes_true.shape)
-
-        #print(images.dtype, trimaps_true.dtype, mattes_true.dtype)
 
         if visual_debug:
             save_image(make_grid(images), str(input_image_save_path / f"{step+1}_input.png"))
 
-        #print(trimaps_true.sum())
-        #print(trimaps_true.max())
-        #print(torch.unique(trimaps_true))
         network.train()
         network.freeze_bn()
         # semantic loss
         semantics_pred, details_pred, mattes_pred = network(images, "train")
         boundaries = (trimaps_true == 0) + (trimaps_true == 1)
-        #print(boundaries.sum())
-        #trimaps_true = trimaps_true / 255.
-        #boundaries =
-        #print((boundaries == 0).sum())
-        #print(boundaries.dtype)
         semantics_true = F.interpolate(mattes_true, scale_factor=1/16, mode="bilinear")
         semantics_true = blurer(semantics_true)
-        #print(semantics_true.size(), semantics_pred.size())
         semantic_loss = torch.mean(F.mse_loss(semantics_pred, semantics_true))
         semantic_loss = semantic_scale * semantic_loss
 
         # detail loss
-        #print(trimaps_true.dtype)
-        #print(details_pred.dtype)
         boundary_detail_pred = torch.where(boundaries, trimaps_true, details_pred)
         details_true = torch.where(boundaries, trimaps_true, mattes_true)
-        #print(boundaries.size(), boundaries.sum())
         detail_loss = torch.mean(F.l1_loss(boundary_detail_pred, details_true))
         detail_loss = detail_scale * detail_loss
-        #print(details_true.sum())
-        #print(boundary_detail_pred.sum())
 
         # matte loss
         boundary_mattes_pred = torch.where(boundaries, trimaps_true, mattes_pred)
@@ -189,9 +150,6 @@ def train_from_folder(
 
         # optimization step
         loss = semantic_loss + detail_loss + matte_loss
-        #loss = semantic_loss + matte_loss
-        #loss = semantic_loss
-        #loss = matte_loss
 
         #print(semantic_loss.item(), detail_loss.item(), matte_loss.item())
         loss.backward()
