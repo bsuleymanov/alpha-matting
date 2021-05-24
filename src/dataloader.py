@@ -496,7 +496,7 @@ class MaadaaMattingLoader:
         data_loader = torch.utils.data.DataLoader(
             dataset=dataset, batch_size=self.batch_size,
             shuffle=True,
-            num_workers=32, drop_last=False)
+            num_workers=8, drop_last=True)
         return data_loader
 
 
@@ -649,7 +649,6 @@ class MaadaaMattingLoaderV2:
             shuffle=True,
             num_workers=8, drop_last=False)
         return data_loader
-
 
 
 

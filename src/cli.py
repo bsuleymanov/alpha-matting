@@ -29,6 +29,7 @@ def train_from_folder(
     version="mobilenetv2",
     total_step=150000,
     batch_size=3,
+    val_batch_size = 5,
     accumulation_steps=1,
     n_workers=8,
     learning_rate=0.01,
@@ -41,9 +42,10 @@ def train_from_folder(
     is_train=True,
     parallel=False,
     use_tensorboard=False,
-    image_path="../data/dataset/train/",
-    foreground_path="../data/foregrounds/train/",
+    image_path="../data/dataset_split/train/",
+    foreground_path="../data/foregrounds_split/train/",
     background_path="../data/backgrounds/",
+    val_image_path="../data/one_image_dataset_split/val/",
     mask_path="../data/dataset/train/seg",
     log_path="./logs",
     model_save_path="./models",
@@ -78,6 +80,8 @@ def train_from_folder(
     dataloader = MaadaaMattingLoaderV2(image_path, foreground_path,
                                        background_path, image_size,
                                        batch_size, mode).loader()
+    validation_dataloader = MaadaaMattingLoader(val_image_path, image_size,
+                                                val_batch_size, mode).loader()
     data_iter = iter(dataloader)
     step_per_epoch = len(dataloader)
     total_epoch = total_step / step_per_epoch
@@ -179,20 +183,82 @@ def train_from_folder(
             boundary_mattes_pred
         torch.cuda.empty_cache()
 
+        # new validation step
         if (step + 1) % sample_step == 0:
             network.eval()
+            val_loss = 0
+            semantic_val_loss = 0
+            detail_val_loss = 0
+            matte_val_loss = 0
+            val_dataset_size = len(validation_dataloader.dataset)
             with torch.no_grad():
-                _, _, mattes_samples = network(images, "test")
-            #print(mattes_samples.sum())
-            #save_image(mattes_samples[0:1].data,
-            #           str(sample_path / f"{step+1}_predict.png"))
-            #save_image(mattes_true[0:1].data,
-            #           str(sample_path / f"{step + 1}_true.png"))
-            im_to_save = tensor_to_image(mattes_samples[0])
-            print(np.array(im_to_save).shape)
-            wandb.log({"examples": [wandb.Image(im_to_save, caption="Label")]})
-            del mattes_samples
-            torch.cuda.empty_cache()
+                for images, mattes_true in validation_dataloader:
+                    images = images.to(device).float()
+                    mattes_true = mattes_true.to(device).float()
+                    trimaps_true = generate_trimap_kornia(mattes_true).float()
+
+                    #semantics_pred, details_pred, mattes_pred = network(images, "train")
+
+                    # semantic loss
+                    semantics_pred, details_pred, mattes_pred = network(images, "train")
+                    boundaries = (trimaps_true == 0) + (trimaps_true == 1)
+                    semantics_true = F.interpolate(mattes_true, scale_factor=1 / 16, mode="bilinear")
+                    semantics_true = blurer(semantics_true)
+                    semantic_loss = torch.mean(F.mse_loss(semantics_pred, semantics_true))
+                    semantic_loss = semantic_scale * semantic_loss
+
+                    # detail loss
+                    boundary_detail_pred = torch.where(boundaries, trimaps_true, details_pred)
+                    details_true = torch.where(boundaries, trimaps_true, mattes_true)
+                    detail_loss = torch.mean(F.l1_loss(boundary_detail_pred, details_true))
+                    detail_loss = detail_scale * detail_loss
+
+                    # matte loss
+                    boundary_mattes_pred = torch.where(boundaries, trimaps_true, mattes_pred)
+                    matte_l1_loss = (F.l1_loss(mattes_pred, mattes_true) +
+                                     4.0 * F.l1_loss(boundary_mattes_pred, mattes_true))
+                    matte_compositional_loss = (F.l1_loss(images * mattes_pred, images * mattes_true) +
+                                                4.0 * F.l1_loss(images * boundary_mattes_pred, images * mattes_true))
+                    matte_loss = torch.mean(matte_l1_loss + matte_compositional_loss)
+                    matte_loss = matte_scale * matte_loss
+
+                    current_batch_size = len(images)
+                    semantic_loss = semantic_loss * current_batch_size
+                    detail_loss = detail_loss * current_batch_size
+                    matte_loss = matte_loss * current_batch_size
+
+                    loss = semantic_loss + detail_loss + matte_loss
+                    val_loss += loss.item()
+                    semantic_val_loss += semantic_loss.item()
+                    detail_val_loss += detail_loss.item()
+                    matte_val_loss += matte_loss.item()
+
+                im_to_save = tensor_to_image(mattes_pred[0])
+                print(np.array(im_to_save).shape)
+                wandb.log({"examples": [wandb.Image(im_to_save, caption="Label")]})
+                wandb.log({"val loss": val_loss / val_dataset_size,
+                           "val semantic loss": semantic_val_loss / val_dataset_size,
+                           "val detail loss": detail_val_loss / val_dataset_size,
+                           "val matte loss": matte_val_loss / val_dataset_size})
+                del semantics_pred, details_pred, mattes_pred, \
+                    semantics_true, boundary_detail_pred, details_true, \
+                    boundary_mattes_pred
+                torch.cuda.empty_cache()
+
+        # if (step + 1) % sample_step == 0:
+        #     network.eval()
+        #     with torch.no_grad():
+        #         _, _, mattes_samples = network(images, "test")
+        #     #print(mattes_samples.sum())
+        #     #save_image(mattes_samples[0:1].data,
+        #     #           str(sample_path / f"{step+1}_predict.png"))
+        #     #save_image(mattes_true[0:1].data,
+        #     #           str(sample_path / f"{step + 1}_true.png"))
+        #     im_to_save = tensor_to_image(mattes_samples[0])
+        #     print(np.array(im_to_save).shape)
+        #     wandb.log({"examples": [wandb.Image(im_to_save, caption="Label")]})
+        #     del mattes_samples
+        #     torch.cuda.empty_cache()
 
         if (step + 1) % model_save_step == 0:
             torch.save(network.state_dict(),
