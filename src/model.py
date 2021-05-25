@@ -147,7 +147,7 @@ class HRBranch(nn.Module):
         self.conv_enc4x = ConvBlock(2 * hr_channels, 2 * hr_channels, 3,
                                     stride=1, padding=1)
         self.conv_hr4x = nn.Sequential(
-            ConvBlock(3 * hr_channels + 3, 2 * hr_channels, 3, stride=1, padding=1),
+            ConvBlock(4 * hr_channels + 3, 2 * hr_channels, 3, stride=1, padding=1),
             ConvBlock(2 * hr_channels, 2 * hr_channels, 3, stride=1, padding=1),
             ConvBlock(2 * hr_channels, hr_channels, 3, stride=1, padding=1),
         )
@@ -174,6 +174,7 @@ class HRBranch(nn.Module):
         hr4x = self.conv_enc4x(torch.cat((hr4x, enc4x), dim=1))
         lr4x = F.interpolate(lr8x, scale_factor=2, mode="bilinear",
                              align_corners=False)
+        #print(hr4x.size(), lr4x.size(), image4x.size())
         hr4x = self.conv_hr4x(torch.cat((hr4x, lr4x, image4x), dim=1))
         hr2x = F.interpolate(hr4x, scale_factor=2, mode="bilinear",
                              align_corners=False)
@@ -228,6 +229,73 @@ class MODNet(nn.Module):
 
         self.backbone = SUPPORTED_BACKBONES[self.backbone_arch](self.in_channels)
 
+        self.lr_branch = LRBranch(self.backbone)
+        self.hr_branch = HRBranch(self.hr_channels, self.backbone.enc_channels)
+        self.f_branch = FusionBranch(self.hr_channels, self.backbone.enc_channels)
+
+        for m in self.modules():
+            if isinstance(m, nn.Conv2d):
+                self._init_conv(m)
+            elif isinstance(m, nn.BatchNorm2d) or isinstance(m, nn.InstanceNorm2d):
+                self._init_norm(m)
+
+        if self.backbone_pretrained:
+            self.backbone.load_pretrained_ckpt()
+
+        #self.freeze_bn()
+        self.freeze_backbone()
+
+    def forward(self, image, mode):
+        semantic_pred, lr8x, [enc2x, enc4x] = self.lr_branch(image, mode)
+        detail_pred, hr2x = self.hr_branch(image, enc2x, enc4x, lr8x, mode)
+        matte_pred = self.f_branch(image, lr8x, hr2x)
+
+        return semantic_pred, detail_pred, matte_pred
+
+    def freeze_backbone(self):
+        for param in self.backbone.parameters():
+            param.requires_grad = False
+
+    def freeze_norm(self):
+        norm_types = [nn.BatchNorm2d, nn.InstanceNorm2d]
+        for m in self.modules():
+            for n in norm_types:
+                if isinstance(m, n):
+                    m.eval()
+                    continue
+
+    def freeze_bn(self):
+        norm_types = [nn.BatchNorm2d]
+        for m in self.modules():
+            for n in norm_types:
+                if isinstance(m, n):
+                    m.eval()
+                    m.weight.requires_grad = False
+                    m.bias.requires_grad = False
+                    continue
+
+    def _init_conv(self, conv):
+        nn.init.kaiming_uniform_(
+            conv.weight, a=0, mode="fan_in", nonlinearity="relu")
+        if conv.bias is not None:
+            nn.init.constant_(conv.bias, 0)
+
+    def _init_norm(self, norm):
+        if norm.weight is not None:
+            nn.init.constant_(norm.weight, 1)
+            nn.init.constant_(norm.bias, 0)
+
+
+class MODNet(nn.Module):
+    def __init__(self, in_channels=3, hr_channels=64, backbone_arch="resnet18",
+                 backbone_pretrained=True):
+        super(MODNet, self).__init__()
+        self.in_channels = in_channels
+        self.hr_channels = hr_channels
+        self.backbone_arch = backbone_arch
+        self.backbone_pretrained = backbone_pretrained
+
+        self.backbone = SUPPORTED_BACKBONES[self.backbone_arch](self.in_channels)
         self.lr_branch = LRBranch(self.backbone)
         self.hr_branch = HRBranch(self.hr_channels, self.backbone.enc_channels)
         self.f_branch = FusionBranch(self.hr_channels, self.backbone.enc_channels)

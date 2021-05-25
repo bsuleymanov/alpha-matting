@@ -5,7 +5,7 @@ import torch
 import torch.nn as nn
 
 from .mobilenetv2 import MobileNetV2
-
+from .resnet import ResNet, BasicBlock
 
 class BaseBackbone(nn.Module):
     """ Superclass of Replaceable Backbone Model for Semantic Estimation
@@ -24,6 +24,56 @@ class BaseBackbone(nn.Module):
     def load_pretrained_ckpt(self):
         raise NotImplementedError
 
+
+class ResNet18Backbone(BaseBackbone):
+    """ResNet18 Backbone"""
+
+    def __init__(self, in_channels):
+        super(ResNet18Backbone, self).__init__(in_channels)
+        self.model = ResNet(in_channels, BasicBlock, [2, 2, 2, 2], num_classes=None)
+        self.enc_channels = []
+        features = self.model(torch.ones([1, 3, 256, 256]))
+        for x in features[1:]:
+            self.enc_channels.append(x.size(1))
+        print(self.enc_channels)
+
+    def forward(self, x):
+        # Stage 1
+        x = self.model.conv1(x)
+        x = self.model.bn1(x)
+        x = self.model.relu(x)
+        enc2x = x
+
+        # Stage 2
+        x = self.model.maxpool(x)
+        x = self.model.layer1(x)
+        enc4x = x
+
+        # Stage 3
+        x = self.model.layer2(x)
+        enc8x = x
+
+        # Stage 4
+        x = self.model.layer3(x)
+        enc16x = x
+
+        # Stage 5
+        x = self.model.layer4(x)
+        enc32x = x
+
+        return [enc2x, enc4x, enc8x, enc16x, enc32x]
+
+    def load_pretrained_ckpt(self):
+        # the pre-trained model is provided by https://github.com/thuyngch/Human-Segmentation-PyTorch
+        ckpt_path = 'pretrained/resnet18_human_seg.ckpt'
+        if not os.path.exists(ckpt_path):
+            print('cannot find the pretrained resnet18 backbone')
+            exit()
+
+        ckpt = torch.load(ckpt_path)
+        self.model.load_state_dict(ckpt)
+        # trained_dict = torch.load("pretrained/resnet18_human_seg.ckpt", map_location="cpu")
+        # self.backbone.load_state_dict(trained_dict, strict=False)
 
 class MobileNetV2Backbone(BaseBackbone):
     """ MobileNetV2 Backbone 
