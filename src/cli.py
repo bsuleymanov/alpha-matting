@@ -29,7 +29,7 @@ def train_from_folder(
     image_size=256,
     version="mobilenetv2",
     total_step=150000,
-    batch_size=3,
+    batch_size=2,
     val_batch_size = 3,
     accumulation_steps=1,
     n_workers=8,
@@ -78,9 +78,11 @@ def train_from_folder(
     mkdir_if_empty_or_not_exist(model_save_path)
     mkdir_if_empty_or_not_exist(input_image_save_path)
 
-    dataloader = MaadaaMattingLoaderV2(image_path, foreground_path,
-                                       background_path, image_size,
-                                       batch_size, mode).loader()
+    # dataloader = MaadaaMattingLoaderV2(image_path, foreground_path,
+    #                                    background_path, image_size,
+    #                                    batch_size, mode).loader()
+    dataloader = MaadaaMattingLoader(image_path, image_size,
+                                     batch_size, mode).loader()
     validation_dataloader = MaadaaMattingLoader(val_image_path, image_size,
                                                 val_batch_size, mode).loader()
     data_iter = iter(dataloader)
@@ -119,10 +121,12 @@ def train_from_folder(
     for step in range(start, total_step):
         #print(f'step {step}')
         try:
-            images, mattes_true, foregrounds, backgrounds = next(data_iter)
+            #images, mattes_true, foregrounds, backgrounds = next(data_iter)
+            images, mattes_true = next(data_iter)
         except:
             data_iter = iter(dataloader)
-            images, mattes_true, foregrounds, backgrounds = next(data_iter)
+            #images, mattes_true, foregrounds, backgrounds = next(data_iter)
+            images, mattes_true = next(data_iter)
 
         images = images.to(device).float()
         mattes_true = mattes_true.to(device).float()
@@ -194,13 +198,14 @@ def train_from_folder(
                     # detail_val_loss += detail_loss.item()
                     # matte_val_loss += matte_loss.item()
 
-                    im_to_save = tensor_to_image(matte_pred[0])
+                    images_to_save = []
+                    for k in range(len(matte_pred)):
+                        images_to_save.append(wandb.Image(tensor_to_image(matte_pred[k]), caption="Label"))
 
                     del semantic_pred, detail_pred, matte_pred,
                     torch.cuda.empty_cache()
 
-                    print(np.array(im_to_save).shape)
-                    wandb.log({"examples": [wandb.Image(im_to_save, caption="Label")]})
+                    wandb.log({"examples": images_to_save})
                 wandb.log({"val loss": val_loss / val_dataset_size,})
                            # "val semantic loss": semantic_val_loss / val_dataset_size,
                            # "val detail loss": detail_val_loss / val_dataset_size,
