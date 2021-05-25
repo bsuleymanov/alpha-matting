@@ -18,7 +18,8 @@ from torchvision.utils import make_grid
 from matplotlib import pyplot as plt
 import sys
 import cv2
-
+from losses import ModNetLoss, modnet_loss
+from functools import partial
 
 
 def train_from_folder(
@@ -29,7 +30,7 @@ def train_from_folder(
     version="mobilenetv2",
     total_step=150000,
     batch_size=3,
-    val_batch_size = 5,
+    val_batch_size = 3,
     accumulation_steps=1,
     n_workers=8,
     learning_rate=0.01,
@@ -94,6 +95,9 @@ def train_from_folder(
         start = 0
 
     blurer = GaussianBlurLayer(3, 3).to(device)
+    #loss_fn = ModNetLoss(semantic_scale, detail_scale, matte_scale, blurer)
+    loss_fn = partial(modnet_loss, semantic_scale=semantic_scale, detail_scale=detail_scale,
+                                  matte_scale=matte_scale, blurer=blurer, average=True)
     network = MODNet().to(device)
     network.freeze_backbone()
     if parallel:
@@ -129,31 +133,12 @@ def train_from_folder(
 
         network.train()
         network.freeze_bn()
-        # semantic loss
-        semantics_pred, details_pred, mattes_pred = network(images, "train")
-        boundaries = (trimaps_true == 0) + (trimaps_true == 1)
-        semantics_true = F.interpolate(mattes_true, scale_factor=1/16, mode="bilinear")
-        semantics_true = blurer(semantics_true)
-        semantic_loss = torch.mean(F.mse_loss(semantics_pred, semantics_true))
-        semantic_loss = semantic_scale * semantic_loss
 
-        # detail loss
-        boundary_detail_pred = torch.where(boundaries, trimaps_true, details_pred)
-        details_true = torch.where(boundaries, trimaps_true, mattes_true)
-        detail_loss = torch.mean(F.l1_loss(boundary_detail_pred, details_true))
-        detail_loss = detail_scale * detail_loss
-
-        # matte loss
-        boundary_mattes_pred = torch.where(boundaries, trimaps_true, mattes_pred)
-        matte_l1_loss = (F.l1_loss(mattes_pred, mattes_true) +
-                         4.0 * F.l1_loss(boundary_mattes_pred, mattes_true))
-        matte_compositional_loss = (F.l1_loss(images * mattes_pred, images * mattes_true) +
-                                    4.0 * F.l1_loss(images * boundary_mattes_pred, images * mattes_true))
-        matte_loss = torch.mean(matte_l1_loss + matte_compositional_loss)
-        matte_loss = matte_scale * matte_loss
+        semantic_pred, detail_pred, matte_pred = network(images, "train")
 
         # optimization step
-        loss = semantic_loss + detail_loss + matte_loss
+        loss = loss_fn(semantic_pred, detail_pred, matte_pred,
+                       mattes_true, trimaps_true, images)
 
         #print(semantic_loss.item(), detail_loss.item(), matte_loss.item())
         loss.backward()
@@ -173,14 +158,12 @@ def train_from_folder(
                 elapsed = str(datetime.timedelta(seconds=elapsed))
                 print(f"Elapsed [{elapsed}], step [{step + 1} / {total_step}], "
                       f"loss: {loss.item():.4f}")
-                wandb.log({"loss": loss.item(),
-                           "semantic loss": semantic_loss.item(),
-                           "detail loss": detail_loss.item(),
-                           "matte loss": matte_loss.item()})
+                wandb.log({"loss": loss.item(),})
+                           # "semantic loss": semantic_loss.item(),
+                           # "detail loss": detail_loss.item(),
+                           # "matte loss": matte_loss.item()})
 
-        del semantics_pred, details_pred, mattes_pred, \
-            semantics_true, boundary_detail_pred, details_true, \
-            boundary_mattes_pred
+        del semantic_pred, detail_pred, matte_pred
         torch.cuda.empty_cache()
 
         # new validation step
@@ -197,53 +180,31 @@ def train_from_folder(
                     mattes_true = mattes_true.to(device).float()
                     trimaps_true = generate_trimap_kornia(mattes_true).float()
 
-                    #semantics_pred, details_pred, mattes_pred = network(images, "train")
-
-                    # semantic loss
-                    semantics_pred, details_pred, mattes_pred = network(images, "train")
-                    boundaries = (trimaps_true == 0) + (trimaps_true == 1)
-                    semantics_true = F.interpolate(mattes_true, scale_factor=1 / 16, mode="bilinear")
-                    semantics_true = blurer(semantics_true)
-                    semantic_loss = torch.mean(F.mse_loss(semantics_pred, semantics_true))
-                    semantic_loss = semantic_scale * semantic_loss
-
-                    # detail loss
-                    boundary_detail_pred = torch.where(boundaries, trimaps_true, details_pred)
-                    details_true = torch.where(boundaries, trimaps_true, mattes_true)
-                    detail_loss = torch.mean(F.l1_loss(boundary_detail_pred, details_true))
-                    detail_loss = detail_scale * detail_loss
-
-                    # matte loss
-                    boundary_mattes_pred = torch.where(boundaries, trimaps_true, mattes_pred)
-                    matte_l1_loss = (F.l1_loss(mattes_pred, mattes_true) +
-                                     4.0 * F.l1_loss(boundary_mattes_pred, mattes_true))
-                    matte_compositional_loss = (F.l1_loss(images * mattes_pred, images * mattes_true) +
-                                                4.0 * F.l1_loss(images * boundary_mattes_pred, images * mattes_true))
-                    matte_loss = torch.mean(matte_l1_loss + matte_compositional_loss)
-                    matte_loss = matte_scale * matte_loss
+                    semantic_pred, detail_pred, matte_pred = network(images, "train")
 
                     current_batch_size = len(images)
-                    semantic_loss = semantic_loss * current_batch_size
-                    detail_loss = detail_loss * current_batch_size
-                    matte_loss = matte_loss * current_batch_size
+                    #semantic_loss = semantic_loss * current_batch_size
+                    #detail_loss = detail_loss * current_batch_size
+                    #matte_loss = matte_loss * current_batch_size
 
-                    loss = semantic_loss + detail_loss + matte_loss
+                    loss = loss_fn(semantic_pred, detail_pred, matte_pred,
+                                   mattes_true, trimaps_true, images) * current_batch_size
                     val_loss += loss.item()
-                    semantic_val_loss += semantic_loss.item()
-                    detail_val_loss += detail_loss.item()
-                    matte_val_loss += matte_loss.item()
+                    # semantic_val_loss += semantic_loss.item()
+                    # detail_val_loss += detail_loss.item()
+                    # matte_val_loss += matte_loss.item()
 
-                im_to_save = tensor_to_image(mattes_pred[0])
-                print(np.array(im_to_save).shape)
-                wandb.log({"examples": [wandb.Image(im_to_save, caption="Label")]})
-                wandb.log({"val loss": val_loss / val_dataset_size,
-                           "val semantic loss": semantic_val_loss / val_dataset_size,
-                           "val detail loss": detail_val_loss / val_dataset_size,
-                           "val matte loss": matte_val_loss / val_dataset_size})
-                del semantics_pred, details_pred, mattes_pred, \
-                    semantics_true, boundary_detail_pred, details_true, \
-                    boundary_mattes_pred
-                torch.cuda.empty_cache()
+                    im_to_save = tensor_to_image(matte_pred[0])
+
+                    del semantic_pred, detail_pred, matte_pred,
+                    torch.cuda.empty_cache()
+
+                    print(np.array(im_to_save).shape)
+                    wandb.log({"examples": [wandb.Image(im_to_save, caption="Label")]})
+                wandb.log({"val loss": val_loss / val_dataset_size,})
+                           # "val semantic loss": semantic_val_loss / val_dataset_size,
+                           # "val detail loss": detail_val_loss / val_dataset_size,
+                           # "val matte loss": matte_val_loss / val_dataset_size})
 
         # if (step + 1) % sample_step == 0:
         #     network.eval()
