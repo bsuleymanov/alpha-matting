@@ -178,6 +178,7 @@ def train_from_folder(
             detail_val_loss = 0
             matte_val_loss = 0
             val_dataset_size = len(validation_dataloader.dataset)
+            images_to_save = []
             with torch.no_grad():
                 for images, mattes_true in validation_dataloader:
                     images = images.to(device).float()
@@ -198,14 +199,14 @@ def train_from_folder(
                     # detail_val_loss += detail_loss.item()
                     # matte_val_loss += matte_loss.item()
 
-                    images_to_save = []
+                    #images_to_save = []
                     for k in range(len(matte_pred)):
                         images_to_save.append(wandb.Image(tensor_to_image(matte_pred[k]), caption="Label"))
 
                     del semantic_pred, detail_pred, matte_pred,
                     torch.cuda.empty_cache()
 
-                    wandb.log({"examples": images_to_save})
+                wandb.log({"examples": images_to_save})
                 wandb.log({"val loss": val_loss / val_dataset_size,})
                            # "val semantic loss": semantic_val_loss / val_dataset_size,
                            # "val detail loss": detail_val_loss / val_dataset_size,
