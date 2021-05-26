@@ -20,6 +20,10 @@ import sys
 import cv2
 from losses import ModNetLoss, modnet_loss
 from functools import partial
+import pandas as pd
+import seaborn as sns
+import plotly.express as px
+
 
 
 def train_from_folder(
@@ -100,6 +104,8 @@ def train_from_folder(
     #loss_fn = ModNetLoss(semantic_scale, detail_scale, matte_scale, blurer)
     loss_fn = partial(modnet_loss, semantic_scale=semantic_scale, detail_scale=detail_scale,
                                   matte_scale=matte_scale, blurer=blurer, average=True)
+    loss_list_fn = partial(modnet_loss, semantic_scale=semantic_scale, detail_scale=detail_scale,
+                                  matte_scale=matte_scale, blurer=blurer, average=False)
     network = MODNet().to(device)
     network.freeze_backbone()
     if parallel:
@@ -116,7 +122,7 @@ def train_from_folder(
     #optimizer = torch.optim.SGD(network.parameters(), lr=learning_rate, momentum=0.9)
     #lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=int(0.25 * total_epoch), gamma=0.1)
     #lr_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=0.5)
-
+    val_loss_arr = []
     start_time = time.time()
     for step in range(start, total_step):
         #print(f'step {step}')
@@ -171,8 +177,10 @@ def train_from_folder(
         torch.cuda.empty_cache()
 
         # new validation step
+
         if (step + 1) % sample_step == 0:
             network.eval()
+            val_loss_list = []
             val_loss = 0
             semantic_val_loss = 0
             detail_val_loss = 0
@@ -195,6 +203,8 @@ def train_from_folder(
                     loss = loss_fn(semantic_pred, detail_pred, matte_pred,
                                    mattes_true, trimaps_true, images) * current_batch_size
                     val_loss += loss.item()
+                    val_loss_list.extend(loss_list_fn(semantic_pred, detail_pred, matte_pred,
+                                         mattes_true, trimaps_true, images).tolist())
                     # semantic_val_loss += semantic_loss.item()
                     # detail_val_loss += detail_loss.item()
                     # matte_val_loss += matte_loss.item()
@@ -205,9 +215,18 @@ def train_from_folder(
 
                     del semantic_pred, detail_pred, matte_pred,
                     torch.cuda.empty_cache()
-
+                #print(val_loss_list)
+                val_loss_arr.extend([[x, y] for (x, y) in zip([step] * len(val_loss_list), val_loss_list)])
+                df = pd.DataFrame(data=val_loss_arr, columns=['step', 'error'])
+                print(df)
+                fig = px.scatter(x=df.step.values, y=df.error.values)
+                #print(np.array(val_loss_arr), np.array(val_loss_arr).shape)
+                #table = wandb.Table(data=val_loss_arr, columns=['step', 'error'])
+                #table = wandb.Table(dataframe=df)
+                #wandb.log({"val loss": wandb.plot.scatter(table, "step", "error")})
+                wandb.log({'val loss': fig})
                 wandb.log({"examples": images_to_save})
-                wandb.log({"val loss": val_loss / val_dataset_size,})
+                #wandb.log({"val loss": val_loss / val_dataset_size,})
                            # "val semantic loss": semantic_val_loss / val_dataset_size,
                            # "val detail loss": detail_val_loss / val_dataset_size,
                            # "val matte loss": matte_val_loss / val_dataset_size})
