@@ -1,0 +1,5 @@
+dataset:
+  image:
+    size: 256
+    channels: 3
+
