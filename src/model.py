@@ -119,13 +119,13 @@ class LRBranch(nn.Module):
         self.conv_lr = ConvBlock(enc_channels[2], 3, kernel_size=3,
                                    stride=2, padding=1, use_ibn=False, use_relu=False)
 
-    def forward(self, image, mode):
+    def forward(self, image, mode="train"):
         enc_embedding = self.backbone.forward(image)
         enc2x, enc4x, enc32x = enc_embedding[0], enc_embedding[1], enc_embedding[4]
         enc32x = self.se_block(enc32x)
-        lr16x = F.interpolate(enc32x, scale_factor=2, mode="bilinear", align_corners=False)
+        lr16x = F.interpolate(enc32x, scale_factor=2., mode="bilinear", align_corners=False)
         lr16x = self.conv_lr16x(lr16x)
-        lr8x = F.interpolate(lr16x, scale_factor=2, mode="bilinear", align_corners=False)
+        lr8x = F.interpolate(lr16x, scale_factor=2., mode="bilinear", align_corners=False)
         lr8x = self.conv_lr8x(lr8x)
 
         semantic_pred = None
@@ -163,7 +163,7 @@ class HRBranch(nn.Module):
                       use_ibn=False, use_relu=False),
         )
 
-    def forward(self, image, enc2x, enc4x, lr8x, mode):
+    def forward(self, image, enc2x, enc4x, lr8x, mode="train"):
         image2x = F.interpolate(image, scale_factor=1/2, mode="bilinear",
                                 align_corners=False)
         image4x = F.interpolate(image, scale_factor=1/4, mode="bilinear",
@@ -172,17 +172,17 @@ class HRBranch(nn.Module):
         hr4x = self.conv_enc2x(torch.cat((image2x, enc2x), dim=1))
         enc4x = self.tohr_enc4x(enc4x)
         hr4x = self.conv_enc4x(torch.cat((hr4x, enc4x), dim=1))
-        lr4x = F.interpolate(lr8x, scale_factor=2, mode="bilinear",
+        lr4x = F.interpolate(lr8x, scale_factor=2., mode="bilinear",
                              align_corners=False)
         #print(hr4x.size(), lr4x.size(), image4x.size())
         hr4x = self.conv_hr4x(torch.cat((hr4x, lr4x, image4x), dim=1))
-        hr2x = F.interpolate(hr4x, scale_factor=2, mode="bilinear",
+        hr2x = F.interpolate(hr4x, scale_factor=2., mode="bilinear",
                              align_corners=False)
         hr2x = self.conv_hr2x(torch.cat((hr2x, enc2x), dim=1))
 
         detail_pred = None
         if mode == "train":
-            hr = F.interpolate(hr2x, scale_factor=2, mode="bilinear",
+            hr = F.interpolate(hr2x, scale_factor=2., mode="bilinear",
                                align_corners=False)
             hr = self.conv_hr(torch.cat((hr, image), dim=1))
             detail_pred = torch.sigmoid(hr)
@@ -204,13 +204,13 @@ class FusionBranch(nn.Module):
         )
 
     def forward(self, image, lr8x, hr2x):
-        lr4x = F.interpolate(lr8x, scale_factor=2, mode='bilinear',
+        lr4x = F.interpolate(lr8x, scale_factor=2., mode='bilinear',
                              align_corners=False)
         lr4x = self.conv_lr4x(lr4x)
-        lr2x = F.interpolate(lr4x, scale_factor=2, mode='bilinear',
+        lr2x = F.interpolate(lr4x, scale_factor=2., mode='bilinear',
                              align_corners=False)
         f2x = self.conv_f2x(torch.cat((lr2x, hr2x), dim=1))
-        f = F.interpolate(f2x, scale_factor=2, mode='bilinear',
+        f = F.interpolate(f2x, scale_factor=2., mode='bilinear',
                           align_corners=False)
         f = self.conv_f(torch.cat((f, image), dim=1))
         matte_pred = torch.sigmoid(f)
@@ -218,7 +218,7 @@ class FusionBranch(nn.Module):
         return matte_pred
 
 
-class MODNet(nn.Module):
+class MODNet1(nn.Module):
     def __init__(self, in_channels=3, hr_channels=32, backbone_arch="mobilenetv2",
                  backbone_pretrained=True):
         super(MODNet, self).__init__()
