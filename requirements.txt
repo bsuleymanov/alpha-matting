@@ -1,0 +1,15 @@
+--find-links https://download.pytorch.org/whl/torch_stable.html
+torch==1.8.1+cu111
+jpeg4py==0.1.4
+torchvision==0.9.1+cu111
+wandb
+tqdm
+matplotlib
+opencv-python
+pandas
+seaborn
+plotly
+pillow
+albumentations
+kornia
+torchsummary

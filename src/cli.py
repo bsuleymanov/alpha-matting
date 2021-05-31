@@ -82,11 +82,11 @@ def train_from_folder(
     mkdir_if_empty_or_not_exist(model_save_path)
     mkdir_if_empty_or_not_exist(input_image_save_path)
 
-    # dataloader = MaadaaMattingLoaderV2(image_path, foreground_path,
-    #                                    background_path, image_size,
-    #                                    batch_size, mode).loader()
-    dataloader = MaadaaMattingLoader(image_path, image_size,
-                                     batch_size, mode).loader()
+    dataloader = MaadaaMattingLoaderV2(image_path, foreground_path,
+                                       background_path, image_size,
+                                       batch_size, mode).loader()
+    #dataloader = MaadaaMattingLoader(image_path, image_size,
+    #                                 batch_size, mode).loader()
     validation_dataloader = MaadaaMattingLoader(val_image_path, image_size,
                                                 val_batch_size, mode).loader()
     data_iter = iter(dataloader)
@@ -127,12 +127,12 @@ def train_from_folder(
     for step in range(start, total_step):
         #print(f'step {step}')
         try:
-            #images, mattes_true, foregrounds, backgrounds = next(data_iter)
-            images, mattes_true = next(data_iter)
+            images, mattes_true, foregrounds, backgrounds = next(data_iter)
+            #images, mattes_true = next(data_iter)
         except:
             data_iter = iter(dataloader)
-            #images, mattes_true, foregrounds, backgrounds = next(data_iter)
-            images, mattes_true = next(data_iter)
+            images, mattes_true, foregrounds, backgrounds = next(data_iter)
+            #images, mattes_true = next(data_iter)
 
         images = images.to(device).float()
         mattes_true = mattes_true.to(device).float()
@@ -188,7 +188,7 @@ def train_from_folder(
             val_dataset_size = len(validation_dataloader.dataset)
             images_to_save = []
             with torch.no_grad():
-                for images, mattes_true in validation_dataloader:
+                for images, mattes_true, foregrounds, backgrounds in validation_dataloader:
                     images = images.to(device).float()
                     mattes_true = mattes_true.to(device).float()
                     trimaps_true = generate_trimap_kornia(mattes_true).float()

@@ -1,0 +1,7 @@
+_target_: src.dataloader_hydra.MaadaaMattingLoaderV2
+image_path: ${DATA.TRAIN.IMAGE_PATH}
+foreground_path: ${DATA.TRAIN.FOREGROUND_PATH}
+background_path: ${DATA.TRAIN.BACKGROUND_PATH}
+image_size: ${DATA.TRAIN.IMAGE_SIZE}
+batch_size: ${DATA.TRAIN.BATCH_SIZE}
+mode: ${MODE}
