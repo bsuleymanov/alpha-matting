@@ -1,18 +1,22 @@
 # @package _global_
 defaults:
-  - dataloader: maadaamattingloaderv2
+  - dataloader@DATA.TRAIN.DATALOADER: kekloader1
+  - dataloader@DATA.TEST.DATALOADER: kekloader2
 
 CHECKPOINT:
   DIR: "checkpoints"
   CHECKPOINT_FREQUENCY: 1
+#TRAINDATALOADER: ${TRAINDATALOADER1}
+#TESTDATALOADER: ${TESTDATALOADER1}
 DATA:
   NUM_DATALOADER_WORKERS: 8
+
   TRAIN:
     NAME: "maadaa"
     IMAGE_PATH: "../data/dataset_split/train/"
     FOREGROUND_PATH: "../data/foregrounds_split/train/"
     BACKGROUND_PATH: "../data/backgrounds/"
-    DATALOADER: ${dataloader}
+    #DATALOADER: MISSING
     BATCH_SIZE: 2
     SHUFFLE: True
     IMAGE_SIZE: 256

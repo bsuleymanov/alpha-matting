@@ -1,5 +1,5 @@
 # @package _group_
-_target_: src.dataloader_hydra.MaadaaMattingLoaderV2
+_target_: src.dataloader_hydra.MaadaaMattingLoaderV3
 image_path: ${DATA.TRAIN.IMAGE_PATH}
 foreground_path: ${DATA.TRAIN.FOREGROUND_PATH}
 background_path: ${DATA.TRAIN.BACKGROUND_PATH}

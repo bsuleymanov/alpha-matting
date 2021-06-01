@@ -62,7 +62,7 @@ class MainConfig:
 
 @hydra.main(config_path="configs/maadaa/modnet", config_name="config")
 def train(cfg: DictConfig):
-    wandb.init(project=cfg.WANDB.PROJECT, entity=cfg.WANDB.USER)
+    #wandb.init(project=cfg.WANDB.PROJECT, entity=cfg.WANDB.USER)
     mode = "train" if cfg.IS_TRAIN else "test"
     model_save_path = Path(to_absolute_path(cfg.MODEL_SAVE_PATH))
     input_image_save_path = Path(to_absolute_path(cfg.INPUT_IMAGE_SAVE_PATH))
