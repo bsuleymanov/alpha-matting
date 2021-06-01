@@ -1,5 +1,6 @@
-_target_: dataloader.MaadaaMattingLoader
-image_path: "../../../../data/dataset_split/train/"
-image_size: 256
-batch_size: 32
-mode: "train"
+_target_: src.dataloader_hydra.MaadaaMattingLoader
+image_path: ${..IMAGE_PATH}
+image_size: ${..IMAGE_SIZE}
+batch_size: ${..BATCH_SIZE}
+mode: ${MODE}
+

@@ -1,22 +1,27 @@
 # @package _global_
 defaults:
-  - dataloader@DATA.TRAIN.DATALOADER: kekloader1
-  - dataloader@DATA.TEST.DATALOADER: kekloader2
+  - dataloader@DATA.TRAIN.DATALOADER: maadaamattingloaderv2
+  - dataloader@DATA.TEST.DATALOADER: maadaamattingloader
 
 CHECKPOINT:
   DIR: "checkpoints"
   CHECKPOINT_FREQUENCY: 1
-#TRAINDATALOADER: ${TRAINDATALOADER1}
-#TESTDATALOADER: ${TESTDATALOADER1}
 DATA:
   NUM_DATALOADER_WORKERS: 8
-
   TRAIN:
     NAME: "maadaa"
     IMAGE_PATH: "../data/dataset_split/train/"
     FOREGROUND_PATH: "../data/foregrounds_split/train/"
     BACKGROUND_PATH: "../data/backgrounds/"
-    #DATALOADER: MISSING
+#    Rewrite default dataloader
+#    DATALOADER:
+#      _target_: src.dataloader_hydra.MaadaaMattingLoaderV2
+#      image_path: ${DATA.TRAIN.IMAGE_PATH}
+#      foreground_path: ${DATA.TRAIN.FOREGROUND_PATH}
+#      background_path: ${DATA.TRAIN.BACKGROUND_PATH}
+#      image_size: ${DATA.TRAIN.IMAGE_SIZE}
+#      batch_size: ${DATA.TRAIN.BATCH_SIZE}
+#      mode: ${MODE}
     BATCH_SIZE: 2
     SHUFFLE: True
     IMAGE_SIZE: 256
@@ -37,6 +42,15 @@ DATA:
   TEST:
     NAME: "maadaa"
     IMAGE_PATH: "../data/one_image_dataset_split/val/"
+#    Rewrite default dataloader
+#    DATALOADER:
+#      _target_: src.dataloader_hydra.MaadaaMattingLoaderV2
+#      image_path: ${DATA.TEST.IMAGE_PATH}
+#      foreground_path: ${DATA.TEST.FOREGROUND_PATH}
+#      background_path: ${DATA.TEST.BACKGROUND_PATH}
+#      image_size: ${DATA.TEST.IMAGE_SIZE}
+#      batch_size: ${DATA.TEST.BATCH_SIZE}
+#      mode: ${MODE}
     BATCH_SIZE: 2
     SHUFFLE: True
     IMAGE_SIZE: 256

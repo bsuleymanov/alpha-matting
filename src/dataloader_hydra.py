@@ -501,6 +501,10 @@ class MaadaaMattingLoader:
             num_workers=8, drop_last=True)
         return data_loader
 
+    def loader(self):
+        print("Loader.")
+        return [1, 2, 3, 4, 5]
+
 
 class MaadaaMattingDatasetWOTrimapV2:
     def __init__(self, image_dir, foreground_dir, background_dir,
@@ -667,6 +671,7 @@ class MaadaaMattingLoaderV3:
         self.image_size = image_size
         self.batch_size = batch_size
         self.mode = mode
+        print(f"Batch size: {self.batch_size}")
 
     def transform(self):
         shared_pre_transform = A.Compose([

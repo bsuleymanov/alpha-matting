@@ -70,12 +70,11 @@ def train(cfg: DictConfig):
     mkdir_if_empty_or_not_exist(input_image_save_path)
 
     #print(cfg.DATA.TRAIN.DATALOADER.image_path)
-    dataloader = instantiate(cfg.DATA.TRAIN.DATALOADER).loader()
-    print(cfg.DATA.TRAIN.DATALOADER)
-    print(len(dataloader))
-    # dataloader = MaadaaMattingLoaderV2(image_path, foreground_path,
-    #                                    background_path, image_size,
-    #                                    batch_size, mode).loader()
+    train_dataloader = instantiate(cfg.DATA.TRAIN.DATALOADER).loader()
+    val_dataloader = instantiate(cfg.DATA.TEST.DATALOADER).loader()
+
+    print(len(train_dataloader))
+    print(len(val_dataloader))
 
 
 
