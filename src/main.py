@@ -70,12 +70,15 @@ def train(cfg: DictConfig):
     mkdir_if_empty_or_not_exist(input_image_save_path)
 
     #print(cfg.DATA.TRAIN.DATALOADER.image_path)
-    train_dataloader = instantiate(cfg.DATA.TRAIN.DATALOADER).loader()
-    val_dataloader = instantiate(cfg.DATA.TEST.DATALOADER).loader()
+    #train_dataloader = instantiate(cfg.DATA.TRAIN.DATALOADER).loader()
+    #val_dataloader = instantiate(cfg.DATA.TEST.DATALOADER).loader()
 
-    print(len(train_dataloader))
-    print(len(val_dataloader))
+    #print(len(train_dataloader))
+    #print(len(val_dataloader))
 
+    print(cfg.DATA.TRAIN.TRANSFORMS.shared_pre)
+    shared_pre_transform = instantiate(cfg.DATA.TRAIN.TRANSFORMS.shared_pre)
+    print(shared_pre_transform)
 
 
 if __name__ == "__main__":

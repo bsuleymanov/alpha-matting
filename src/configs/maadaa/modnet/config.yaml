@@ -24,14 +24,16 @@ DATA:
 #      mode: ${MODE}
     BATCH_SIZE: 2
     SHUFFLE: True
-    IMAGE_SIZE: 256
+    IMAGE_SIZE: ${.BATCH_SIZE}
     TRANSFORMS:
       shared_pre:
-        - name: A.SmallestMaxSize
-          max_size: ${DATASET.TRAIN.IMAGE_SIZE}
-        - name: A.RandomCrop
-          height: ${DATASET.TRAIN.IMAGE_SIZE}
-          width: ${DATASET.TRAIN.IMAGE_SIZE}
+        _target_: albumentations.Compose
+        transforms:
+          - _target_: albumentations.SmallestMaxSize
+            max_size: ${.....IMAGE_SIZE}
+          - _target_: albumentations.RandomCrop
+            height: ${.....IMAGE_SIZE}
+            width: ${.....IMAGE_SIZE}
       composition:
         - name: A.Normalize
           mean: (0.5, 0.5, 0.5)
