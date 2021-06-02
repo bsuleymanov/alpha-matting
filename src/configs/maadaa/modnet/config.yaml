@@ -2,12 +2,12 @@
 defaults:
   - dataloader@DATA.TRAIN.DATALOADER: maadaamattingloaderv2
   - dataloader@DATA.TEST.DATALOADER: maadaamattingloader
+  - transform@DATA.TRAIN.TRANSFORMS: simple_transform
 
-CHECKPOINT:
-  DIR: "checkpoints"
-  CHECKPOINT_FREQUENCY: 1
+#CHECKPOINT:
+#  DIR: "checkpoints"
+#  CHECKPOINT_FREQUENCY: 1
 DATA:
-  NUM_DATALOADER_WORKERS: 8
   TRAIN:
     NAME: "maadaa"
     IMAGE_PATH: "../data/dataset_split/train/"
@@ -21,80 +21,88 @@ DATA:
 #      background_path: ${DATA.TRAIN.BACKGROUND_PATH}
 #      image_size: ${DATA.TRAIN.IMAGE_SIZE}
 #      batch_size: ${DATA.TRAIN.BATCH_SIZE}
-#      mode: ${MODE}
-    BATCH_SIZE: 2
-    SHUFFLE: True
-    IMAGE_SIZE: ${.BATCH_SIZE}
-    TRANSFORMS:
-      shared_pre:
-        _target_: albumentations.Compose
-        transforms:
-          - _target_: albumentations.SmallestMaxSize
-            max_size: ${.....IMAGE_SIZE}
-          - _target_: albumentations.RandomCrop
-            height: ${.....IMAGE_SIZE}
-            width: ${.....IMAGE_SIZE}
-      composition:
-        - name: A.Normalize
-          mean: (0.5, 0.5, 0.5)
-          std: (0.5, 0.5, 0.5)
-      shared_post:
-        A.ToTensorV2
-    DROP_LAST: False
-  TEST:
-    NAME: "maadaa"
-    IMAGE_PATH: "../data/one_image_dataset_split/val/"
-#    Rewrite default dataloader
-#    DATALOADER:
-#      _target_: src.dataloader_hydra.MaadaaMattingLoaderV2
-#      image_path: ${DATA.TEST.IMAGE_PATH}
-#      foreground_path: ${DATA.TEST.FOREGROUND_PATH}
-#      background_path: ${DATA.TEST.BACKGROUND_PATH}
-#      image_size: ${DATA.TEST.IMAGE_SIZE}
-#      batch_size: ${DATA.TEST.BATCH_SIZE}
+#      drop_last: ${DATA.TRAIN.DROP_LAST}
 #      mode: ${MODE}
     BATCH_SIZE: 2
     SHUFFLE: True
     IMAGE_SIZE: 256
-    TRANSFORMS:
-      shared_pre:
-        - name: A.SmallestMaxSize
-          max_size: ${DATASET.TRAIN.IMAGE_SIZE}
-        - name: A.RandomCrop
-          height: ${DATASET.TRAIN.IMAGE_SIZE}
-          width: ${DATASET.TRAIN.IMAGE_SIZE}
-      composition:
-        - name: A.Normalize
-          mean: (0.5, 0.5, 0.5)
-          std: (0.5, 0.5, 0.5)
-      shared_post:
-        A.ToTensorV2
+#    TRANSFORMS:
+#      shared_pre:
+#        _target_: albumentations.Compose
+#        transforms:
+#          - _target_: albumentations.SmallestMaxSize
+#            max_size: ${.....IMAGE_SIZE}
+#          - _target_: albumentations.RandomCrop
+#            height: ${.....IMAGE_SIZE}
+#            width: ${.....IMAGE_SIZE}
+#      composition:
+#        _target_: albumentations.Compose
+#        transforms:
+#          - _target_: albumentations.Normalize
+#            mean: (0.5, 0.5, 0.5)
+#            std: (0.5, 0.5, 0.5)
+#      foreground: MISSING
+#      background: MISSING
+#      matte: MISSING
+#      shared_post:
+#        _target_: albumentations.pytorch.ToTensorV2
     DROP_LAST: False
-MODEL:
-  NAME: modnet
-  BACKBONE:
-    NAME: resnet18
-    PRETRAINED: True
-  IN_CHANNELS: 3
-  HR_CHANNELS: 64
-LOSS:
-  NAME: modnet_loss
-  AVERAGE: TRUE
-OPTIMIZER:
-  name: adam
-TRAINER:
-  TOTAL_STEP: 150000
-MACHINE:
-  DEVICE: gpu
-WANDB:
-  PROJECT: alpha-matting
-  USER: bsuleymanov
-IS_TRAIN: True
+    NUM_WORKERS: null
+#  TEST:
+#    NAME: "maadaa"
+#    IMAGE_PATH: "../data/one_image_dataset_split/val/"
+##    Rewrite default dataloader
+#    DATALOADER: ???
+##    DATALOADER:
+##      _target_: src.dataloader_hydra.MaadaaMattingLoaderV2
+##      image_path: ${DATA.TEST.IMAGE_PATH}
+##      foreground_path: ${DATA.TEST.FOREGROUND_PATH}
+##      background_path: ${DATA.TEST.BACKGROUND_PATH}
+##      image_size: ${DATA.TEST.IMAGE_SIZE}
+##      batch_size: ${DATA.TEST.BATCH_SIZE}
+##      mode: ${MODE}
+#    BATCH_SIZE: 2
+#    SHUFFLE: True
+#    IMAGE_SIZE: 256
+#    TRANSFORMS:
+#      shared_pre:
+#        - name: A.SmallestMaxSize
+#          max_size: ${DATASET.TRAIN.IMAGE_SIZE}
+#        - name: A.RandomCrop
+#          height: ${DATASET.TRAIN.IMAGE_SIZE}
+#          width: ${DATASET.TRAIN.IMAGE_SIZE}
+#      composition:
+#        - name: A.Normalize
+#          mean: (0.5, 0.5, 0.5)
+#          std: (0.5, 0.5, 0.5)
+#      shared_post:
+#        A.ToTensorV2
+#    DROP_LAST: False
+#MODEL:
+#  NAME: modnet
+#  BACKBONE:
+#    NAME: resnet18
+#    PRETRAINED: True
+#  IN_CHANNELS: 3
+#  HR_CHANNELS: 64
+#LOSS:
+#  NAME: modnet_loss
+#  AVERAGE: TRUE
+#OPTIMIZER:
+#  name: adam
+#TRAINER:
+#  TOTAL_STEP: 150000
+#MACHINE:
+#  DEVICE: gpu
+#WANDB:
+#  PROJECT: alpha-matting
+#  USER: bsuleymanov
+#IS_TRAIN: True
 MODE: "train"
-VERBOSE: 1
-LOG_STEP: 10
-SAMPLE_STEP: 10
-MODEL_SAVE_STEP: 1
-MODEL_SAVE_PATH: "./models"
-INPUT_IMAGE_SAVE_PATH: "./input_save"
-VISUAL_DEBUG: False
+#VERBOSE: 1
+#LOG_STEP: 10
+#SAMPLE_STEP: 10
+#MODEL_SAVE_STEP: 1
+#MODEL_SAVE_PATH: "./models"
+#INPUT_IMAGE_SAVE_PATH: "./input_save"
+#VISUAL_DEBUG: False
