@@ -1,0 +1,13 @@
+.ipynb_checkpoints/*
+/notebooks/*
+/data/*
+/datasets/backgrounds/*
+/datasets/Backgrounds/*
+/datasets/dataset_split/*
+/datasets/foreground_split/*
+/datasets/one_image_dataset_split/*
+/other_datasets/*
+/venv/*
+/src/models/*
+/src/outputs/*
+/src/models old/*
