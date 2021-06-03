@@ -16,71 +16,72 @@ from hydra.utils import to_absolute_path
 from typing import Any, Optional
 
 OmegaConf.register_new_resolver("if_null_default", lambda x, y: y if x is None else x)
+#OmegaConf.register_new_resolver("kek", lambda x: x is None)
 
 logger = logging.getLogger(__name__)
 
 
-@dataclass
-class DataloaderConfig:
-    _target_: Any
-    image_path: str
-    foreground_path: str
-    background_path: str
-    image_size: int
-    batch_size: int
-    drop_last: bool
-    shuffle: bool
-    mode: str
-    num_workers: Optional = None
-    shared_pre_transform: Optional = None
-    composition_transform: Optional = None
-    foreground_transform: Optional = None
-    background_transform: Optional = None
-    matte_transform: Optional = None
-    shared_post_transform: Optional = None
+# @dataclass
+# class DataloaderConfig:
+#     _target_: Any
+#     image_path: str
+#     foreground_path: str
+#     background_path: str
+#     image_size: int
+#     batch_size: int
+#     drop_last: bool
+#     shuffle: bool
+#     mode: str
+#     num_workers: Optional[int] = None
+#     shared_pre_transform: Optional = None
+#     composition_transform: Optional = None
+#     foreground_transform: Optional = None
+#     background_transform: Optional = None
+#     matte_transform: Optional = None
+#     shared_post_transform: Optional = None
+#
+# @dataclass
+# class TransformsConfig:
+#     shared_pre: Any
+#     composition: Any
+#     shared_post: Any
+#     foreground: Optional = None
+#     background: Optional = None
+#     matte: Optional = None
+#
+#
+# @dataclass
+# class TrainDataConfig:
+#     NAME: str
+#     IMAGE_PATH: str
+#     FOREGROUND_PATH: str
+#     BACKGROUND_PATH: str
+#     DATALOADER: DataloaderConfig
+#     BATCH_SIZE: int
+#     SHUFFLE: bool
+#     IMAGE_SIZE: int
+#     DROP_LAST: bool
+#     TRANSFORMS: TransformsConfig
+#     NUM_WORKERS: Optional[int] = None
+#
+# @dataclass
+# class TestDataConfig:
+#     ...
+#
+# @dataclass
+# class DataConfig:
+#     TRAIN: TrainDataConfig
+#     #TEST: TestDataConfig
+#
+# @dataclass
+# class MainConfig:
+#     DATA: DataConfig
+#     MODE: str
+#     #train_dataloader: TrainDataloaderConfig
+#     #model: ModelConfig
 
-@dataclass
-class TransformsConfig:
-    shared_pre: Any
-    composition: Any
-    shared_post: Any
-    foreground: Optional = None
-    background: Optional = None
-    matte: Optional = None
-
-
-@dataclass
-class TrainDataConfig:
-    NAME: str
-    IMAGE_PATH: str
-    FOREGROUND_PATH: str
-    BACKGROUND_PATH: str
-    DATALOADER: DataloaderConfig
-    BATCH_SIZE: int
-    SHUFFLE: bool
-    IMAGE_SIZE: int
-    DROP_LAST: bool
-    NUM_WORKERS: int
-    TRANSFORMS: TransformsConfig
-
-@dataclass
-class TestDataConfig:
-    ...
-
-@dataclass
-class DataConfig:
-    TRAIN: TrainDataConfig
-    #TEST: TestDataConfig
-
-@dataclass
-class MainConfig:
-    DATA: DataConfig
-    MODE: str
-    #train_dataloader: TrainDataloaderConfig
-    #model: ModelConfig
-
-cs = hydra.core.config_store.ConfigStore()
-cs.store(name="config_schema", node=MainConfig)
+#cs = hydra.core.config_store.ConfigStore()
+#cs.store(name="config_schema", node=MainConfig)
 
 # @hydra.main(config_path="configs", config_name="config")
 # def train(cfg: DictConfig):
@@ -104,10 +105,16 @@ def train(cfg: DictConfig):
     #mkdir_if_empty_or_not_exist(input_image_save_path)
 
     #print(cfg.DATA.TRAIN.DATALOADER.image_path)
-    train_dataloader = instantiate(cfg.DATA.TRAIN.DATALOADER).loader
+    train_dataloader = instantiate(cfg.data.train)
     #val_dataloader = instantiate(cfg.DATA.TEST.DATALOADER).loader()
+    #train_transforms = instantiate(cfg.data.train.transforms.shared_pre)
 
+    #print(cfg.data.train.image_path)
+    #print(train_transforms)
+    print(OmegaConf.to_yaml(cfg.data))
     print(len(train_dataloader))
+    #print(cfg.data.train.transforms)
+    #print(OmegaConf.to_yaml(cfg))
     #print(len(val_dataloader))
 
 

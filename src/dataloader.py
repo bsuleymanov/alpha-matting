@@ -6,7 +6,7 @@ from pathlib import Path
 from torchvision.transforms.functional import InterpolationMode
 import numpy as np
 import albumentations as A
-from albumentations.pytorch import ToTensorV2, ToTensor
+from albumentations.pytorch import ToTensorV2
 from utils import generate_trimap
 import cv2
 import random

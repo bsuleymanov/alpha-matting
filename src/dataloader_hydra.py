@@ -7,7 +7,7 @@ from torchvision.transforms.functional import InterpolationMode
 import numpy as np
 import albumentations as A
 from albumentations.pytorch import ToTensorV2
-from utils import generate_trimap
+from utils import generate_trimap, set_transform
 import cv2
 import random
 from hydra.utils import to_absolute_path
@@ -520,12 +520,12 @@ class MaadaaMattingDatasetWOTrimapV2:
         #self.foreground_list = [x[:-4]+"_foreground.jpg" for x in self.matte_list]
         print(len(self.foreground_list), len(self.background_list), len(self.matte_list))
 
-        self.shared_pre_transform = shared_pre_transform
-        self.composition_transform = composition_transform
-        self.foreground_transform = foreground_transform
-        self.background_transform = background_transform
-        self.matte_transform = matte_transform
-        self.shared_post_transform = shared_post_transform
+        self.shared_pre_transform = set_transform(shared_pre_transform)
+        self.composition_transform = set_transform(composition_transform)
+        self.foreground_transform = set_transform(foreground_transform)
+        self.background_transform = set_transform(background_transform)
+        self.matte_transform = set_transform(matte_transform)
+        self.shared_post_transform = set_transform(shared_post_transform)
 
         self.train_dataset = []
         self.test_dataset = []
@@ -534,28 +534,22 @@ class MaadaaMattingDatasetWOTrimapV2:
 
         self.preprocess()
 
-        if mode == "train":
-            self.n_images = len(self.train_dataset)
-        else:
-            self.n_images = len(self.test_dataset)
-
     def preprocess(self, bg_per_fg=10):
-        ...
-        # for i in range(len(self.foreground_list)):
-        #     foreground_path = self.foreground_list[i]
-        #     matte_path = self.matte_list[i]
-        #     current_background_paths = random.sample(self.background_list, bg_per_fg)
-        #     for background_path in current_background_paths:
-        #         if self.verbose > 0:
-        #             print(foreground_path, background_path, matte_path)
-        #         if self.mode == "train":
-        #             self.train_dataset.append([foreground_path, background_path, matte_path])
-        #         else:
-        #             self.test_dataset.append([foreground_path, background_path, matte_path])
-        # random.shuffle(self.train_dataset)
-        # random.shuffle(self.test_dataset)
-        # if self.verbose > 0:
-        #     print("Finished preprocessing the MaadaaMatting dataset...")
+        for i in range(len(self.foreground_list)):
+            foreground_path = self.foreground_list[i]
+            matte_path = self.matte_list[i]
+            current_background_paths = random.sample(self.background_list, bg_per_fg)
+            for background_path in current_background_paths:
+                if self.verbose > 0:
+                    print(foreground_path, background_path, matte_path)
+                if self.mode == "train":
+                    self.train_dataset.append([foreground_path, background_path, matte_path])
+                else:
+                    self.test_dataset.append([foreground_path, background_path, matte_path])
+        random.shuffle(self.train_dataset)
+        random.shuffle(self.test_dataset)
+        if self.verbose > 0:
+            print("Finished preprocessing the MaadaaMatting dataset...")
 
     def __getitem__(self, index):
         dataset = self.train_dataset if self.mode == "train" else self.test_dataset
@@ -605,114 +599,31 @@ class MaadaaMattingDatasetWOTrimapV2:
         return (composition, matte, foreground, background)
 
     def __len__(self):
-        return self.n_images
+        if self.mode == "train":
+            return len(self.train_dataset)
+        else:
+            return len(self.test_dataset)
 
 
 class MaadaaMattingLoaderV2:
     def __init__(self, image_path, foreground_path, background_path,
-                 image_size, batch_size, mode):
-        self.image_dir = Path(to_absolute_path(image_path))
-        self.foreground_dir = Path(to_absolute_path(foreground_path))
-        self.background_dir = Path(to_absolute_path(background_path))
-        self.image_size = image_size
-        self.batch_size = batch_size
-        self.mode = mode
-
-    def transform(self):
-        shared_pre_transform = A.Compose([
-            A.SmallestMaxSize(self.image_size),
-            A.RandomCrop(self.image_size, self.image_size)
-        ])
-        composition_transform = A.Compose([
-            A.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
-        ])
-        #foreground_transform = A.Compose([
-        #    A.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
-        #])
-        #background_transform = A.Compose([
-        #    A.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
-        #])
-        foreground_transform = lambda image: image
-        background_transform = lambda image: image
-        matte_transform = lambda image: image#A.Compose([])
-        shared_post_transform = A.Compose([
-            ToTensorV2(),
-        ])
-
-        return (shared_pre_transform, composition_transform, foreground_transform,
-                background_transform, matte_transform, shared_post_transform)
-
-    def loader(self):
-        (shared_pre_transform, composition_transform,
-         foreground_transform, background_transform,
-         matte_transform, shared_post_transform) = self.transform()
+                 image_size=256, batch_size=8, mode="train", drop_last=False,
+                 shuffle=True, num_workers=8,
+                 shared_pre_transform=None, composition_transform=None,
+                 foreground_transform=None, background_transform=None,
+                 matte_transform=None, shared_post_transform=None):
+        print(f"shuffle: {shuffle}")
+        image_dir = Path(to_absolute_path(image_path))
+        foreground_dir = Path(to_absolute_path(foreground_path))
+        background_dir = Path(to_absolute_path(background_path))
         dataset = MaadaaMattingDatasetWOTrimapV2(
-            self.image_dir, self.foreground_dir, self.background_dir,
+            image_dir, foreground_dir, background_dir,
             shared_pre_transform, composition_transform,
             foreground_transform, background_transform,
-            matte_transform, shared_post_transform, self.mode)
-        data_loader = torch.utils.data.DataLoader(
-            dataset=dataset, batch_size=self.batch_size,
-            shuffle=True,
-            num_workers=8, drop_last=False)
-        return data_loader
-
-    def loader(self):
-        print("Loader.")
-        return [1, 2 ,3 ]
-
-
-class MaadaaMattingLoaderV3:
-    def __init__(self, image_path, foreground_path, background_path,
-                 image_size, batch_size, mode):
-        self.image_dir = Path(to_absolute_path(image_path))
-        self.foreground_dir = Path(to_absolute_path(foreground_path))
-        self.background_dir = Path(to_absolute_path(background_path))
-        self.image_size = image_size
-        self.batch_size = batch_size
-        self.mode = mode
-        print(f"Batch size: {self.batch_size}")
-
-    def transform(self):
-        shared_pre_transform = A.Compose([
-            A.SmallestMaxSize(self.image_size),
-            A.RandomCrop(self.image_size, self.image_size)
-        ])
-        composition_transform = A.Compose([
-            A.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
-        ])
-        #foreground_transform = A.Compose([
-        #    A.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
-        #])
-        #background_transform = A.Compose([
-        #    A.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
-        #])
-        foreground_transform = lambda image: image
-        background_transform = lambda image: image
-        matte_transform = lambda image: image#A.Compose([])
-        shared_post_transform = A.Compose([
-            ToTensorV2(),
-        ])
-
-        return (shared_pre_transform, composition_transform, foreground_transform,
-                background_transform, matte_transform, shared_post_transform)
-
-    def loader(self):
-        (shared_pre_transform, composition_transform,
-         foreground_transform, background_transform,
-         matte_transform, shared_post_transform) = self.transform()
-        dataset = MaadaaMattingDatasetWOTrimapV2(
-            self.image_dir, self.foreground_dir, self.background_dir,
-            shared_pre_transform, composition_transform,
-            foreground_transform, background_transform,
-            matte_transform, shared_post_transform, self.mode)
-        data_loader = torch.utils.data.DataLoader(
-            dataset=dataset, batch_size=self.batch_size,
-            shuffle=True,
-            num_workers=8, drop_last=False)
-        return data_loader
-
-    def loader(self):
-        print("Loader 3.")
-        return [1, 2 , 3, 4]
+            matte_transform, shared_post_transform, mode)
+        print(num_workers)
+        self.loader = torch.utils.data.DataLoader(
+            dataset=dataset, batch_size=batch_size,
+            shuffle=shuffle, num_workers=num_workers,
+            drop_last=drop_last)
 

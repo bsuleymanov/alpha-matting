@@ -1,0 +1,17 @@
+_target_: src.dataloader_hydra.MaadaaMattingLoaderV2
+image_path: ${..IMAGE_PATH}
+foreground_path: ${..FOREGROUND_PATH}
+background_path: ${..BACKGROUND_PATH}
+image_size: ${..IMAGE_SIZE}
+batch_size: ${..BATCH_SIZE}
+drop_last: ${..DROP_LAST}
+shuffle: ${..SHUFFLE}
+#num_workers: ${if_null_default:${..NUM_WORKERS}, 512}
+num_workers: 1024
+mode: ${MODE}
+shared_pre_transform: ${..TRANSFORMS.shared_pre}
+composition_transform: ${..TRANSFORMS.composition}
+foreground_transform: ${..TRANSFORMS.foreground}
+background_transform: ${..TRANSFORMS.background}
+matte_transform: ${..TRANSFORMS.matte}
+shared_post_transform: ${..TRANSFORMS.shared_post}
