@@ -1,53 +1,21 @@
 # @package _global_
 defaults:
-  - dataloader@DATA.TRAIN.DATALOADER: maadaamattingloaderv2
-  - dataloader@DATA.TEST.DATALOADER: maadaamattingloader
-  - transform@DATA.TRAIN.TRANSFORMS: simple_transform
+  - data@data.train: maadaamatting
+  - dataloader@data.train.dataloader: maadaamattingloaderv2
+  - transform@data.train.transforms: simple_transform
 
 #CHECKPOINT:
 #  DIR: "checkpoints"
 #  CHECKPOINT_FREQUENCY: 1
-DATA:
-  TRAIN:
-    NAME: "maadaa"
-    IMAGE_PATH: "../data/dataset_split/train/"
-    FOREGROUND_PATH: "../data/foregrounds_split/train/"
-    BACKGROUND_PATH: "../data/backgrounds/"
-#    Rewrite default dataloader
-#    DATALOADER:
-#      _target_: src.dataloader_hydra.MaadaaMattingLoaderV2
-#      image_path: ${DATA.TRAIN.IMAGE_PATH}
-#      foreground_path: ${DATA.TRAIN.FOREGROUND_PATH}
-#      background_path: ${DATA.TRAIN.BACKGROUND_PATH}
-#      image_size: ${DATA.TRAIN.IMAGE_SIZE}
-#      batch_size: ${DATA.TRAIN.BATCH_SIZE}
-#      drop_last: ${DATA.TRAIN.DROP_LAST}
-#      mode: ${MODE}
-    BATCH_SIZE: 2
-    SHUFFLE: True
-    IMAGE_SIZE: 256
-#    TRANSFORMS:
-#      shared_pre:
-#        _target_: albumentations.Compose
-#        transforms:
-#          - _target_: albumentations.SmallestMaxSize
-#            max_size: ${.....IMAGE_SIZE}
-#          - _target_: albumentations.RandomCrop
-#            height: ${.....IMAGE_SIZE}
-#            width: ${.....IMAGE_SIZE}
-#      composition:
-#        _target_: albumentations.Compose
-#        transforms:
-#          - _target_: albumentations.Normalize
-#            mean: (0.5, 0.5, 0.5)
-#            std: (0.5, 0.5, 0.5)
-#      foreground: MISSING
-#      background: MISSING
-#      matte: MISSING
-#      shared_post:
-#        _target_: albumentations.pytorch.ToTensorV2
-    DROP_LAST: False
-    NUM_WORKERS: null
+data:
+  train:
+    name: "maadaa"
+    image_path: "../data/dataset_split/train/"
+    foreground_path: "../data/foregrounds_split/train/"
+    background_path: "../data/backgrounds/"
+  val:
+    name: "maadaa"
+    image_path: "../data/dataset_split/train/"
 #  TEST:
 #    NAME: "maadaa"
 #    IMAGE_PATH: "../data/one_image_dataset_split/val/"
@@ -98,7 +66,7 @@ DATA:
 #  PROJECT: alpha-matting
 #  USER: bsuleymanov
 #IS_TRAIN: True
-MODE: "train"
+#MODE: "train"
 #VERBOSE: 1
 #LOG_STEP: 10
 #SAMPLE_STEP: 10

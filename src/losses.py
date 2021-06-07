@@ -60,20 +60,36 @@ def modnet_loss(semantic_pred, detail_pred, matte_pred,
         return loss.mean()
     return loss
 
-class ModNetLoss(autograd.Function):
-    def __init__(self, blurer, semantic_scale, detail_scale, matte_scale):
-        super(ModNetLoss, self).__init__()
+class ModNetLoss:
+    def __init__(self, blurer, semantic_scale, detail_scale, matte_scale, average):
         self.blurer = blurer
         self.semantic_scale = semantic_scale
         self.detail_scale = detail_scale
         self.matte_scale = matte_scale
 
-    @staticmethod
-    def forward(self, semantic_pred, detail_pred, matte_pred,
-                matte_true, trimap, images):
+    def __call__(self, semantic_pred, detail_pred, matte_pred,
+                 matte_true, trimap, images):
         boundary = (trimap == 0) + (trimap == 1)
-        semantic_loss = semantic_loss_fn(semantic_pred, matte_true, boundary, self.blurer)
-        detail_loss = detail_loss_fn(detail_pred, trimap, boundary, matte_true)
-        matte_loss = matte_loss_fn(matte_pred, matte_true, trimap, boundary, images)
+        semantic_loss = semantic_loss_fn(semantic_pred, matte_true, boundary, self.blurer, self.average)
+        detail_loss = detail_loss_fn(detail_pred, trimap, boundary, matte_true, self.average)
+        matte_loss = matte_loss_fn(matte_pred, matte_true, trimap, boundary, images, self.average)
         return (semantic_loss * self.semantic_scale + detail_loss * self.detail_scale +
                 matte_loss * self.matte_scale)
+
+# class ModNetLoss(autograd.Function):
+#     def __init__(self, blurer, semantic_scale, detail_scale, matte_scale):
+#         super(ModNetLoss, self).__init__()
+#         self.blurer = blurer
+#         self.semantic_scale = semantic_scale
+#         self.detail_scale = detail_scale
+#         self.matte_scale = matte_scale
+#
+#     @staticmethod
+#     def forward(self, semantic_pred, detail_pred, matte_pred,
+#                 matte_true, trimap, images):
+#         boundary = (trimap == 0) + (trimap == 1)
+#         semantic_loss = semantic_loss_fn(semantic_pred, matte_true, boundary, self.blurer)
+#         detail_loss = detail_loss_fn(detail_pred, trimap, boundary, matte_true)
+#         matte_loss = matte_loss_fn(matte_pred, matte_true, trimap, boundary, images)
+#         return (semantic_loss * self.semantic_scale + detail_loss * self.detail_scale +
+#                 matte_loss * self.matte_scale)

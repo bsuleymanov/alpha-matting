@@ -387,8 +387,8 @@ class MaadaaMattingLoader:
 
 
 class MaadaaMattingDatasetWOTrimap:
-    def __init__(self, image_dir, shared_transform,  image_transform,
-                 matte_transform=None, trimap_transform=None, mode="train",
+    def __init__(self, image_dir, shared_pre_transform,  image_transform,
+                 matte_transform=None, shared_post_transform=None, mode="train",
                  verbose=0):
         #self.image_list = list(map(str, Path(image_dir).rglob("*.jpg")))
         self.matte_list = list(map(str, Path(image_dir).rglob("*.png")))
@@ -396,10 +396,11 @@ class MaadaaMattingDatasetWOTrimap:
         self.image_list = [x[:-4]+".jpg" for x in self.matte_list]
 
         print(len(self.image_list), len(self.matte_list))
-        self.image_transform = image_transform
-        self.shared_transform = shared_transform
-        self.matte_transform = matte_transform
-        self.trimap_transform = trimap_transform
+        self.shared_pre_transform = set_transform(shared_pre_transform)
+        self.image_transform = set_transform(image_transform)
+        self.matte_transform = set_transform(matte_transform)
+        self.shared_post_transform = set_transform(shared_post_transform)
+
         self.train_dataset = []
         self.test_dataset = []
         self.mode = mode
@@ -444,7 +445,6 @@ class MaadaaMattingDatasetWOTrimap:
         else:
             matte = np.array(matte)
 
-
         #image = image / 255.
         matte = matte / 255.
 
@@ -458,53 +458,21 @@ class MaadaaMattingDatasetWOTrimap:
     def __len__(self):
         return self.n_images
 
-
 class MaadaaMattingLoader:
-    def __init__(self, image_path, image_size, batch_size, mode):
-        self.image_dir = Path(image_path)
-        self.image_size = image_size
-        self.batch_size = batch_size
-        self.mode = mode
-
-    def transform(self):
-        shared_transform = A.Compose([
-            A.SmallestMaxSize(self.image_size),
-            #A.Resize(self.image_size, self.image_size)
-            A.RandomCrop(self.image_size, self.image_size)
-        ])
-        image_transform = A.Compose([
-            A.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
-            ToTensorV2(),
-            # ToTensor(normalize={
-            #     "mean": (0.5, 0.5, 0.5),
-            #     "std": (0.5, 0.5, 0.5)
-            # })
-        ])
-        trimap_transform = A.Compose([
-            A.Normalize((0., 0., 0.), (1., 1., 1.)),
-            ToTensorV2(),
-        ])
-        matte_transform = A.Compose([
-            #A.Normalize((0., 0., 0.), (1., 1., 1.)),
-            ToTensorV2(),
-        ])
-
-        return shared_transform, image_transform, trimap_transform, matte_transform
-
-    def loader(self):
-        shared_transform, image_transform, trimap_transform, matte_transform = self.transform()
-        dataset = MaadaaMattingDatasetWOTrimap(self.image_dir, shared_transform, image_transform,
-                                               matte_transform, trimap_transform, self.mode)
-        data_loader = torch.utils.data.DataLoader(
-            dataset=dataset, batch_size=self.batch_size,
-            shuffle=True,
-            num_workers=8, drop_last=True)
-        return data_loader
-
-    def loader(self):
-        print("Loader.")
-        return [1, 2, 3, 4, 5]
-
+    def __init__(self, image_path, image_size=256, batch_size=8,
+                 mode="train", drop_last=False, shuffle=True, num_workers=8,
+                 shared_pre_transform=None, image_transform=None,
+                 matte_transform=None, shared_post_transform=None):
+        print(f"shuffle: {shuffle}")
+        image_dir = Path(to_absolute_path(image_path))
+        dataset = MaadaaMattingDatasetWOTrimapV2(
+            image_dir, shared_pre_transform, image_transform,
+            matte_transform, shared_post_transform, mode)
+        print(num_workers)
+        self.loader = torch.utils.data.DataLoader(
+            dataset=dataset, batch_size=batch_size,
+            shuffle=shuffle, num_workers=num_workers,
+            drop_last=drop_last)
 
 class MaadaaMattingDatasetWOTrimapV2:
     def __init__(self, image_dir, foreground_dir, background_dir,

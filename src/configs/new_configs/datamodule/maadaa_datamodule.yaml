@@ -1,0 +1,8 @@
+_target_: src.datamodule.maadaa_datamodule.MaadaaDataModule
+image_path: #??? #"../data/dataset_split/train/"
+foreground_path: ??? #"../data/foregrounds_split/train/"
+background_path: ??? #"../data/backgrounds/"
+image_size: 256
+mode: "train"
+num_workers: 1
+pin_memory: false

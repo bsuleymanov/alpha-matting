@@ -63,3 +63,10 @@ def tensor_to_image(tensor):
     ndarr = grid.mul(255).add_(0.5).clamp_(0, 255).permute(1, 2, 0).to('cpu', torch.uint8).numpy()
     im = Image.fromarray(ndarr)
     return im
+
+identity_transform = lambda x: x
+
+def set_transform(transformation):
+    if transformation is None:
+        return identity_transform
+    return transformation
