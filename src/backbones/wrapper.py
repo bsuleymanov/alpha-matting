@@ -7,6 +7,8 @@ import torch.nn as nn
 from .mobilenetv2 import MobileNetV2
 from .resnet import ResNet, BasicBlock
 
+from hydra.utils import to_absolute_path
+
 class BaseBackbone(nn.Module):
     """ Superclass of Replaceable Backbone Model for Semantic Estimation
     """
@@ -65,7 +67,7 @@ class ResNet18Backbone(BaseBackbone):
 
     def load_pretrained_ckpt(self):
         # the pre-trained model is provided by https://github.com/thuyngch/Human-Segmentation-PyTorch
-        ckpt_path = './pretrained/resnet18_human_seg.ckpt'
+        ckpt_path = to_absolute_path('./pretrained/resnet18_human_seg.ckpt')
         if not os.path.exists(ckpt_path):
             print('cannot find the pretrained resnet18 backbone')
             exit()

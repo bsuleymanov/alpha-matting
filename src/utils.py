@@ -64,7 +64,7 @@ def tensor_to_image(tensor):
     im = Image.fromarray(ndarr)
     return im
 
-identity_transform = lambda x: x
+identity_transform = lambda image: image
 
 def set_transform(transformation):
     if transformation is None:

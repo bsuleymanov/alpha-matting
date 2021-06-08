@@ -52,12 +52,13 @@ class TransformsConfig:
 @dataclass
 class TrainDataConfig:
     #defaults: List[Any] = field(default_factory=lambda:[{}])
-    num_workers: int = MISSING#: Optional[int]
+    num_workers: int = 8#: Optional[int]
     name: str = "Maadaa"
     image_path: str = MISSING
     foreground_path: str = MISSING
     background_path: str = MISSING
     dataloader: DataloaderConfig = MISSING
+    mode: str = MISSING
     batch_size: int = 8
     shuffle: bool = True
     image_size: int = 256
@@ -85,18 +86,33 @@ class DataConfig:
     train: TrainDataConfig = TrainDataConfig
     #TEST: TestDataConfig
 
+# @dataclass
+# class MainConfig:
+#     defaults: List[Any] = field(default_factory=lambda: [{"data": "maadaadatamodule"}])
+#     data: DataConfig = MISSING
+#     mode: str = MISSING
+#     #train_dataloader: TrainDataloaderConfig
+#     #model: ModelConfig
+
+@dataclass
+class HydraConfig:
+    help: Any
+
 @dataclass
 class MainConfig:
-    defaults: List[Any] = field(default_factory=lambda: [{"data": "maadaadatamodule"}])
-    data: DataConfig = MISSING
+    # defaults: List[Any] = field(default_factory=lambda: [
+    #     {"data": "maadaadatamodule"},
+    #     #{"hydra/help": "main_help"}
+    # ])
+    data: Any = MISSING
     mode: str = MISSING
-    #train_dataloader: TrainDataloaderConfig
-    #model: ModelConfig
+
 
 cs = hydra.core.config_store.ConfigStore()
 cs.store(name="config_schema", node=MainConfig)
-#cs.store(group="data", name="maadaadatamodule", node=DataConfig)
-#cs.store(group="data/train", name="maadaatrain", node=TrainDataConfig)
+#cs.store(name='hydra', node=HydraConfig)
+cs.store(group="data", name="base_data", node=DataConfig)
+cs.store(group="data/train", name="base_data_train", node=TrainDataConfig)
 
 # @hydra.main(config_path="configs", config_name="config")
 # def train(cfg: DictConfig):
@@ -121,6 +137,9 @@ class Foo:
 @hydra.main(config_path="configs/maadaa/modnet", config_name="config")
 #@hydra.main(config_path=None, config_name="config")
 def train(cfg: DictConfig):
+    print(type(cfg.mode))
+    print(cfg.mode)
+    #print(cfg)
     #wandb.init(project=cfg.WANDB.PROJECT, entity=cfg.WANDB.USER)
     #mode = "train" if cfg.IS_TRAIN else "test"
     #model_save_path = Path(to_absolute_path(cfg.MODEL_SAVE_PATH))
@@ -134,11 +153,11 @@ def train(cfg: DictConfig):
     # train_dataloader = instantiate(dataloader_config).loader
     # print(train_dataloader.num_workers)
     # print(cfg.data.train.dataloader)
-    dataloader_config = cfg.data.train.dataloader
-    foo = Foo(dataloader_config)
-    new_cfg = foo()
-    print(dataloader_config)
-    print(new_cfg)
+    # dataloader_config = cfg.data.train.dataloader
+    # foo = Foo(dataloader_config)
+    # new_cfg = foo()
+    # print(dataloader_config)
+    # print(new_cfg)
 
 
     #print(train_dataloader)
@@ -146,7 +165,7 @@ def train(cfg: DictConfig):
     #val_dataloader = instantiate(cfg.DATA.TEST.DATALOADER).loader()
     #train_transforms = instantiate(cfg.data.train.transforms.shared_pre)
 
-    #print(cfg.data.train.image_path
+    #print(cfg.data.train.image_path)
     #print(train_transforms)
     #print(OmegaConf.to_yaml(cfg))
     #print(cfg)

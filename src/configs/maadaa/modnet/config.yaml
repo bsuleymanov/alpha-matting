@@ -1,8 +1,12 @@
 # @package _global_
 defaults:
+  - config_schema
   - data@data.train: maadaamatting
   - dataloader@data.train.dataloader: maadaamattingloaderv2
   - transform@data.train.transforms: simple_transform
+#  - override hydra/help: main_help
+
+
 
 #CHECKPOINT:
 #  DIR: "checkpoints"
@@ -13,9 +17,11 @@ data:
     image_path: "../data/dataset_split/train/"
     foreground_path: "../data/foregrounds_split/train/"
     background_path: "../data/backgrounds/"
+    num_workers: 111
   val:
     name: "maadaa"
     image_path: "../data/dataset_split/train/"
+mode: 'kek' #"train"
 #  TEST:
 #    NAME: "maadaa"
 #    IMAGE_PATH: "../data/one_image_dataset_split/val/"
