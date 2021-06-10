@@ -4,6 +4,7 @@ defaults:
   - data@data.train: maadaamatting
   - dataloader@data.train.dataloader: maadaamattingloaderv2
   - transform@data.train.transforms: simple_transform
+  - override hydra/sweeper: nevergrad
 #  - override hydra/help: main_help
 
 
@@ -21,7 +22,8 @@ data:
   val:
     name: "maadaa"
     image_path: "../data/dataset_split/train/"
-mode: 'kek' #"train"
+mode: "train"
+n_gpus: 8
 #  TEST:
 #    NAME: "maadaa"
 #    IMAGE_PATH: "../data/one_image_dataset_split/val/"

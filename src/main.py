@@ -16,6 +16,7 @@ from hydra.utils import to_absolute_path
 from typing import Any, Optional, List
 
 OmegaConf.register_new_resolver("if_null_default", lambda x, y: y if x is None else x)
+
 #OmegaConf.register_new_resolver("kek", lambda x: x is None)
 
 logger = logging.getLogger(__name__)
@@ -51,8 +52,7 @@ class TransformsConfig:
 
 @dataclass
 class TrainDataConfig:
-    #defaults: List[Any] = field(default_factory=lambda:[{}])
-    num_workers: int = 8#: Optional[int]
+    num_workers: int = 8
     name: str = "Maadaa"
     image_path: str = MISSING
     foreground_path: str = MISSING
@@ -79,12 +79,12 @@ class TrainDataConfig:
 #     drop_last: bool = False
 #     transforms: TransformsConfig = None
 
+#defaults: List[Any] = field(default_factory=lambda: [{"train": "maadaatrain"}])
 
 @dataclass
 class DataConfig:
-    #defaults: List[Any] = field(default_factory=lambda: [{"train": "maadaatrain"}])
     train: TrainDataConfig = TrainDataConfig
-    #TEST: TestDataConfig
+    #test: TestDataConfig
 
 # @dataclass
 # class MainConfig:
@@ -92,7 +92,7 @@ class DataConfig:
 #     data: DataConfig = MISSING
 #     mode: str = MISSING
 #     #train_dataloader: TrainDataloaderConfig
-#     #model: ModelConfig
+#     #network: ModelConfig
 
 @dataclass
 class HydraConfig:
@@ -100,17 +100,18 @@ class HydraConfig:
 
 @dataclass
 class MainConfig:
-    # defaults: List[Any] = field(default_factory=lambda: [
+    data: Any = MISSING
+    mode: Optional[str] = MISSING
+    n_gpus: float = MISSING
+
+
+# defaults: List[Any] = field(default_factory=lambda: [
     #     {"data": "maadaadatamodule"},
     #     #{"hydra/help": "main_help"}
     # ])
-    data: Any = MISSING
-    mode: str = MISSING
-
 
 cs = hydra.core.config_store.ConfigStore()
 cs.store(name="config_schema", node=MainConfig)
-#cs.store(name='hydra', node=HydraConfig)
 cs.store(group="data", name="base_data", node=DataConfig)
 cs.store(group="data/train", name="base_data_train", node=TrainDataConfig)
 
@@ -119,9 +120,9 @@ cs.store(group="data/train", name="base_data_train", node=TrainDataConfig)
 #     logger.info(f"Working dir: {os.getcwd()}")
 #     print(OmegaConf.to_yaml(cfg))
 #     train_loader = instantiate(cfg.dataloader).loader()
-#     model = instantiate(cfg.model)
+#     network = instantiate(cfg.network)
 #     dummy_input = torch.ones([2, 3, 256, 256])
-#     flops = FlopCountAnalysis(model, dummy_input)
+#     flops = FlopCountAnalysis(network, dummy_input)
 #     n_flops = flops.by_module()[''] * 1e-9
 #     n_params = dict(parameter_count(flops._model))[''] * 1e-6
 #     print(f"Flops: {n_flops:.3f}G, Parameters: {n_params: .3f}M")
@@ -134,11 +135,12 @@ class Foo:
         self.cfg.update({"num_workers": 111})
         return self.cfg
 
-@hydra.main(config_path="configs/maadaa/modnet", config_name="config")
 #@hydra.main(config_path=None, config_name="config")
+
+@hydra.main(config_path="configs/maadaa/modnet", config_name="config")
 def train(cfg: DictConfig):
-    print(type(cfg.mode))
-    print(cfg.mode)
+    print(type(cfg.n_gpus))
+    print(cfg.n_gpus)
     #print(cfg)
     #wandb.init(project=cfg.WANDB.PROJECT, entity=cfg.WANDB.USER)
     #mode = "train" if cfg.IS_TRAIN else "test"

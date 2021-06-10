@@ -1,0 +1,8 @@
+project: alpha-matting
+entity: bsuleymanov
+sample_path: "./sample_path"
+model_save_path: "./models"
+input_image_save_path: "./input_save"
+visual_debug: false
+verbose: 1
+log_step: 10

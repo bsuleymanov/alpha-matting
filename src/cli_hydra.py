@@ -99,8 +99,19 @@ def train_from_folder(cfg: DictConfig):
     # loss_fn = instantiate(cfg.train.loss)
     # loss_args.update({"average": True})
     # loss_list_fn = instantiate(loss_args)
+    #loss_fn = instantiate(cfg.training.loss)
     loss_fn = instantiate(cfg.training.loss)
-    loss_list_fn = instantiate(cfg.training.loss, average=False)
+    print(loss_fn)
+    input()
+    loss_list_fn = instantiate(
+        cfg.training.loss, average=False,
+        blurer={"n_channels": 5, "kernel_size": 1})
+
+    blurer = GaussianBlurLayer(3, 3).to(cfg.training.device)
+
+    print(loss_fn.blurer)
+    print(loss_list_fn.blurer)
+
     # loss_fn = ModNetLoss(semantic_scale=cfg.training.loss.semantic_scale,
     #                      detail_scale=cfg.training.loss.detail_scale,
     #                      matte_scale=cfg.training.loss.matte_scale, blurer=blurer, average=True)
@@ -123,10 +134,12 @@ def train_from_folder(cfg: DictConfig):
     # optimizer = OptimizerWrapper(cfg.training.optimizer)([
     #     e for e in network.parameters() if e.requires_grad
     # ])
-    optimizer = instantiate(cfg.training.optimizer,
-                            params=[
-        e for e in network.parameters() if e.requires_grad
-    ])
+
+    optimizer = instantiate(
+        cfg.training.optimizer,
+        params=[e for e in network.parameters()
+                if e.requires_grad])
+
     # lr_scheduler = LRSchedulerWrapper(optimizer=optimizer)
     #lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=int(0.25 * total_epoch), gamma=0.1)
     #optimizer = torch.optim.Adam([e for e in network.parameters()
@@ -282,7 +295,7 @@ def inference_from_folder(
     beta1=0.5,
     beta2=0.999,
     test_size=2824,
-    model_name="model.pth",
+    model_name="network.pth",
     pretrained_model=None,
     is_train=False,
     parallel=False,

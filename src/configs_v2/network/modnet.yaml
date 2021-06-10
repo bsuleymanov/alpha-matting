@@ -1,0 +1,5 @@
+_target_: src.network.MODNet
+in_channels: 3
+hr_channels: 64
+backbone_arch: "resnet18"
+backbone_pretrained: true

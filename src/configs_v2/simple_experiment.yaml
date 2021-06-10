@@ -1,0 +1,22 @@
+defaults:
+  - logging: wandb_logging
+  - data@data.train: maadaamatting
+  - dataloader@data.train.dataloader: maadaamattingloaderv2
+  - transform@data.train.transforms: simple_transform
+  - network: modnet
+
+data:
+  train:
+    image_path: "../data/dataset_split/train/"
+    foreground_path: "../data/foregrounds_split/train/"
+    background_path: "../data/backgrounds/"
+
+training:
+  total_step: 150000
+  device: cuda
+  parallel: false
+  optimizer:
+    _target_: torch.optim.Adam
+
+network:
+  hr_channels: 32

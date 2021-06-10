@@ -1,0 +1,9 @@
+defaults:
+  - config_schema
+  - train_dataloader: maadaamattingloader
+  - model: modnet
+
+dataset:
+  image:
+    size: 256
+    channels: 3

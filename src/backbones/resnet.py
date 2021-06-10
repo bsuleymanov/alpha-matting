@@ -40,12 +40,12 @@ class BaseModel(nn.Module):
 
 	def load_pretrained_model(self, pretrained):
 		if isinstance(pretrained, str):
-			print("[%s] Load pretrained model from %s" % (self.__class__.__name__, pretrained))
+			print("[%s] Load pretrained network from %s" % (self.__class__.__name__, pretrained))
 			pretrain_dict = torch.load(pretrained, map_location='cpu')
 			if 'state_dict' in pretrain_dict:
 				pretrain_dict = pretrain_dict['state_dict']
 		elif isinstance(pretrained, dict):
-			print("[%s] Load pretrained model" % (self.__class__.__name__))
+			print("[%s] Load pretrained network" % (self.__class__.__name__))
 			pretrain_dict = pretrained
 
 		model_dict = {}
@@ -74,12 +74,12 @@ class BaseBackbone(BaseModel):
 		This function is specifically designed for loading pretrain with different in_channels
 		"""
 		if isinstance(pretrained, str):
-			print("[%s] Load pretrained model from %s" % (self.__class__.__name__, pretrained))
+			print("[%s] Load pretrained network from %s" % (self.__class__.__name__, pretrained))
 			pretrain_dict = torch.load(pretrained, map_location='cpu')
 			if 'state_dict' in pretrain_dict:
 				pretrain_dict = pretrain_dict['state_dict']
 		elif isinstance(pretrained, dict):
-			print("[%s] Load pretrained model" % (self.__class__.__name__))
+			print("[%s] Load pretrained network" % (self.__class__.__name__))
 			pretrain_dict = pretrained
 
 		model_dict = {}

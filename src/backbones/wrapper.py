@@ -66,7 +66,7 @@ class ResNet18Backbone(BaseBackbone):
         return [enc2x, enc4x, enc8x, enc16x, enc32x]
 
     def load_pretrained_ckpt(self):
-        # the pre-trained model is provided by https://github.com/thuyngch/Human-Segmentation-PyTorch
+        # the pre-trained network is provided by https://github.com/thuyngch/Human-Segmentation-PyTorch
         ckpt_path = to_absolute_path('./pretrained/resnet18_human_seg.ckpt')
         if not os.path.exists(ckpt_path):
             print('cannot find the pretrained resnet18 backbone')
@@ -88,23 +88,23 @@ class MobileNetV2Backbone(BaseBackbone):
         self.enc_channels = [16, 24, 32, 96, 1280]
 
     def forward(self, x):
-        # x = reduce(lambda x, n: self.model.features[n](x), list(range(0, 2)), x)
+        # x = reduce(lambda x, n: self.network.features[n](x), list(range(0, 2)), x)
         x = self.model.features[0](x)
         x = self.model.features[1](x)
         enc2x = x
 
-        # x = reduce(lambda x, n: self.model.features[n](x), list(range(2, 4)), x)
+        # x = reduce(lambda x, n: self.network.features[n](x), list(range(2, 4)), x)
         x = self.model.features[2](x)
         x = self.model.features[3](x)
         enc4x = x
 
-        # x = reduce(lambda x, n: self.model.features[n](x), list(range(4, 7)), x)
+        # x = reduce(lambda x, n: self.network.features[n](x), list(range(4, 7)), x)
         x = self.model.features[4](x)
         x = self.model.features[5](x)
         x = self.model.features[6](x)
         enc8x = x
 
-        # x = reduce(lambda x, n: self.model.features[n](x), list(range(7, 14)), x)
+        # x = reduce(lambda x, n: self.network.features[n](x), list(range(7, 14)), x)
         x = self.model.features[7](x)
         x = self.model.features[8](x)
         x = self.model.features[9](x)
@@ -114,7 +114,7 @@ class MobileNetV2Backbone(BaseBackbone):
         x = self.model.features[13](x)
         enc16x = x
 
-        # x = reduce(lambda x, n: self.model.features[n](x), list(range(14, 19)), x)
+        # x = reduce(lambda x, n: self.network.features[n](x), list(range(14, 19)), x)
         x = self.model.features[14](x)
         x = self.model.features[15](x)
         x = self.model.features[16](x)
@@ -124,7 +124,7 @@ class MobileNetV2Backbone(BaseBackbone):
         return [enc2x, enc4x, enc8x, enc16x, enc32x]
 
     def load_pretrained_ckpt(self):
-        # the pre-trained model is provided by https://github.com/thuyngch/Human-Segmentation-PyTorch 
+        # the pre-trained network is provided by https://github.com/thuyngch/Human-Segmentation-PyTorch
         ckpt_path = './pretrained/mobilenetv2_human_seg.ckpt'
         if not os.path.exists(ckpt_path):
             print('cannot find the pretrained mobilenetv2 backbone')

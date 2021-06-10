@@ -1,0 +1,6 @@
+name: "maadaa"
+image_path: ???
+foreground_path: ???
+background_path: ???
+image_size: 256
+mode: "train"

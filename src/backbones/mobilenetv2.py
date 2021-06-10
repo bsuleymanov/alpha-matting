@@ -174,7 +174,7 @@ class MobileNetV2(nn.Module):
 		pretrain_dict = torch.load(pretrained_file, map_location='cpu')
 		model_dict = {}
 		state_dict = self.state_dict()
-		print("[MobileNetV2] Loading pretrained model...")
+		print("[MobileNetV2] Loading pretrained network...")
 		for k, v in pretrain_dict.items():
 			if k in state_dict:
 				model_dict[k] = v
