@@ -7,12 +7,16 @@ logging:
   visual_debug: false
   verbose: 1
   log_step: 10
+  sample_step: 100
 
 data:
   train:
-    image_path: "../data/dataset_split/train/"
-    foreground_path: "../data/foregrounds_split/train/"
-    background_path: "../data/backgrounds/"
+    #image_path: "../data/dataset_split/train/"
+    foreground_csv: "../data/VideoMatteSD/train.csv"
+    matte_csv: "../data/VideoMatteSD/train.csv"
+    foreground_dir: "../data/VideoMatteSD/train/fgr" #"../other_datasets/VideoMatte240K_JPEG_SD/train/fgr"
+    background_dir: "../data/backgrounds/"
+    matte_dir: "../data/VideoMatteSD/train/pha" #"../other_datasets/VideoMatte240K_JPEG_SD/train/pha"
     image_size: 256
     mode: "train"
 
@@ -41,16 +45,76 @@ data:
 
     #####
     dataloader:
-      _target_: src.dataloader_hydra.MaadaaMattingLoaderV2
-      image_path: ${..image_path} # MISSING
-      foreground_path: ${..foreground_path} # MISSING
-      background_path: ${..background_path} # MISSING
+      _target_: src.dataloader_hydra.VideoMatteLoader
+      foreground_csv: ${..foreground_csv}
+      matte_csv: ${..matte_csv}
+      foreground_dir: ${..foreground_dir}
+      background_dir: ${..background_dir}
+      matte_dir: ${..matte_dir}
+      image_size: ${..image_size}
+      batch_size: 2
+      drop_last: false
+      shuffle: false
+      num_workers: 8
+      bg_per_fg: 10
+      mode: ${..mode}
+      use_one_img_per_dir: false
+      shared_pre_transform: ${..transforms.shared_pre}
+      composition_transform: ${..transforms.composition}
+      foreground_transform: ${..transforms.foreground}
+      background_transform: ${..transforms.background}
+      matte_transform: ${..transforms.matte}
+      shared_post_transform: ${..transforms.shared_post}
+    #####
+  validation:
+    #image_path: "../data/dataset_split/train/"
+    foreground_csv: "../data/VideoMatteSD/val.csv"
+    matte_csv: "../data/VideoMatteSD/val.csv"
+    foreground_dir: "../other_datasets/VideoMatte240K_JPEG_SD/train/fgr"
+    background_dir: "../data/backgrounds/"
+    matte_dir: "../other_datasets/VideoMatte240K_JPEG_SD/train/pha"
+    image_size: 256
+    mode: "test"
+
+    #####
+    transforms:
+      shared_pre:
+        _target_: albumentations.Compose
+        transforms:
+          - _target_: albumentations.SmallestMaxSize
+            max_size: ${.....image_size}
+          - _target_: albumentations.RandomCrop
+            height: ${.....image_size}
+            width: ${.....image_size}
+      composition:
+        _target_: albumentations.Compose
+        transforms:
+          - _target_: albumentations.Normalize
+            mean: (0.5, 0.5, 0.5)
+            std: (0.5, 0.5, 0.5)
+      foreground:
+      background:
+      matte: null
+      shared_post:
+        _target_: albumentations.pytorch.ToTensorV2
+    #####
+
+    #####
+    dataloader:
+      _target_: src.dataloader_hydra.VideoMatteLoader
+      foreground_csv: ${..foreground_csv}
+      matte_csv: ${..matte_csv}
+      foreground_dir: ${..foreground_dir}
+      background_dir: ${..background_dir}
+      matte_dir: ${..matte_dir}
       image_size: ${..image_size}
       batch_size: 2
       drop_last: false
       shuffle: false
       num_workers: 8
       mode: ${..mode}
+      bg_per_fg: 1
+      use_one_img_per_dir: true
       shared_pre_transform: ${..transforms.shared_pre}
       composition_transform: ${..transforms.composition}
       foreground_transform: ${..transforms.foreground}
@@ -64,9 +128,9 @@ training:
   device: cuda
   loss:
     _target_: src.losses.ModNetLoss
-    _recursive_: false
+    _recursive_: true
     blurer:
-      _target_: src.network.GaussianBlurLayer
+      _target_: src.model.GaussianBlurLayer
       n_channels: 3
       kernel_size: 3
     semantic_scale: 10.0
@@ -78,8 +142,11 @@ training:
   optimizer:
     _target_: torch.optim.Adam
 
+testing:
+  device: cuda
+
 network:
-  _target_: src.network.MODNet
+  _target_: src.model.MODNet
   in_channels: 3
   hr_channels: 64
   backbone_arch: "resnet18"
