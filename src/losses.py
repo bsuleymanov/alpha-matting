@@ -44,7 +44,7 @@ def matte_loss_fn(matte_pred, matte_true, trimap, boundary, images, average=True
 
 def modnet_loss(semantic_pred, detail_pred, matte_pred,
                 matte_true, trimap, images, blurer,
-                semantic_scale, detail_scale, matte_scale, average=True):
+                semantic_scale, detail_scale, matte_scale, average=True, detailed=False):
     boundary = (trimap == 0) + (trimap == 1)
     semantic_loss = semantic_loss_fn(semantic_pred, matte_true, boundary, blurer, average)
     detail_loss = detail_loss_fn(detail_pred, trimap, boundary, matte_true, average)
@@ -58,16 +58,19 @@ def modnet_loss(semantic_pred, detail_pred, matte_pred,
             matte_loss * matte_scale)
     if average:
         return loss.mean()
+    if detailed:
+        return (semantic_loss * semantic_scale, detail_loss * detail_scale, matte_loss * matte_scale, loss)
     return loss
 
 class ModNetLoss:
-    def __init__(self, blurer, semantic_scale, detail_scale, matte_scale, average, device):
+    def __init__(self, blurer, semantic_scale, detail_scale, matte_scale, average, detailed, device):
         self.device = device
         self.blurer = blurer.to(self.device)
         self.semantic_scale = semantic_scale
         self.detail_scale = detail_scale
         self.matte_scale = matte_scale
         self.average = average
+        self.detailed = detailed
 
     def __call__(self, semantic_pred, detail_pred, matte_pred,
                  matte_true, trimap, images):
@@ -79,9 +82,14 @@ class ModNetLoss:
             semantic_loss = semantic_loss.view(semantic_loss.size(0), -1).mean(1)
             detail_loss = detail_loss.view(detail_loss.size(0), -1).mean(1)
             matte_loss = matte_loss.view(matte_loss.size(0), -1).mean(1)
+
         # print(semantic_loss.size(), detail_loss.size(), matte_loss.size())
         loss = (semantic_loss * self.semantic_scale + detail_loss * self.detail_scale +
                 matte_loss * self.matte_scale)
+        if self.detailed and self.average:
+            return (semantic_loss * self.semantic_scale,
+                    detail_loss * self.detail_scale,
+                    matte_loss * self.matte_scale, loss)
         if self.average:
             return loss.mean()
         return loss

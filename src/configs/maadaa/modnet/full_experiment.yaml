@@ -52,10 +52,10 @@ data:
       background_dir: ${..background_dir}
       matte_dir: ${..matte_dir}
       image_size: ${..image_size}
-      batch_size: 2
+      batch_size: 20
       drop_last: false
       shuffle: false
-      num_workers: 8
+      num_workers: 12
       bg_per_fg: 10
       mode: ${..mode}
       use_one_img_per_dir: false
@@ -70,9 +70,9 @@ data:
     #image_path: "../data/dataset_split/train/"
     foreground_csv: "../data/VideoMatteSD/val.csv"
     matte_csv: "../data/VideoMatteSD/val.csv"
-    foreground_dir: "../other_datasets/VideoMatte240K_JPEG_SD/train/fgr"
+    foreground_dir: "../data/VideoMatteSD/train/fgr"
     background_dir: "../data/backgrounds/"
-    matte_dir: "../other_datasets/VideoMatte240K_JPEG_SD/train/pha"
+    matte_dir: "../data/VideoMatteSD/train/pha"
     image_size: 256
     mode: "test"
 
@@ -108,13 +108,13 @@ data:
       background_dir: ${..background_dir}
       matte_dir: ${..matte_dir}
       image_size: ${..image_size}
-      batch_size: 2
+      batch_size: 20
       drop_last: false
       shuffle: false
-      num_workers: 8
+      num_workers: 12
       mode: ${..mode}
       bg_per_fg: 1
-      use_one_img_per_dir: true
+      use_one_img_per_dir: false
       shared_pre_transform: ${..transforms.shared_pre}
       composition_transform: ${..transforms.composition}
       foreground_transform: ${..transforms.foreground}
@@ -137,10 +137,13 @@ training:
     detail_scale: 10.0
     matte_scale: 1.0
     average: true
+    detailed: false
     device: ${..device}
   parallel: false
   optimizer:
-    _target_: torch.optim.Adam
+    _target_: torch.optim.SGD
+    lr: 0.01
+    momentum: 0.9
 
 testing:
   device: cuda

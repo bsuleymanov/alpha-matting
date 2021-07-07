@@ -1,5 +1,5 @@
-from dataloader import MaadaaMattingLoader, MattingTestLoader, \
-                       MattingLoaderDeprecated, MaadaaMattingLoaderV2
+#from dataloader import MaadaaMattingLoader, MattingTestLoader, \
+#                       MattingLoaderDeprecated, MaadaaMattingLoaderV2
 from utils import mkdir_if_empty_or_not_exist, generate_trimap_kornia
 import time
 import datetime
@@ -32,9 +32,9 @@ from hydra.utils import instantiate
 from dataclasses import dataclass, field
 from typing import Any
 import torch
-from fvcore.nn import flop_count_table, flop_count_str
-from fvcore.nn.flop_count import FlopCountAnalysis
-from fvcore.nn.parameter_count import parameter_count
+#from fvcore.nn import flop_count_table, flop_count_str
+#from fvcore.nn.flop_count import FlopCountAnalysis
+#from fvcore.nn.parameter_count import parameter_count
 import wandb
 from pathlib import Path
 from utils import mkdir_if_empty_or_not_exist
@@ -92,6 +92,8 @@ def train_from_folder(cfg: DictConfig):
     print(loss_fn)
     loss_list_fn = instantiate(
         cfg.training.loss, average=False,)
+    loss_fn_valid = instantiate(
+        cfg.training.loss, detailed=True,)
 
     network = instantiate(cfg.network).to(cfg.training.device)
     network.freeze_backbone()
@@ -102,6 +104,8 @@ def train_from_folder(cfg: DictConfig):
         cfg.training.optimizer,
         params=[e for e in network.parameters()
                 if e.requires_grad])
+
+    lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=int(0.25 * total_epoch), gamma=0.1)
 
     val_loss_arr = []
     start_time = time.time()
@@ -130,6 +134,7 @@ def train_from_folder(cfg: DictConfig):
         loss.backward()
         optimizer.step()
         optimizer.zero_grad()
+        lr_scheduler.step(loss.item())
 
         #if (step + 1) % accumulation_steps == 0:  # Wait for several backward steps
         #    optimizer.step()
@@ -174,14 +179,15 @@ def train_from_folder(cfg: DictConfig):
                     #detail_loss = detail_loss * current_batch_size
                     #matte_loss = matte_loss * current_batch_size
 
-                    loss = loss_fn(semantic_pred, detail_pred, matte_pred,
-                                   mattes_true, trimaps_true, images) * current_batch_size
-                    val_loss += loss.item()
+                    (semantic_loss, detail_loss,
+                     matte_loss, loss) = loss_fn_valid(semantic_pred, detail_pred, matte_pred,
+                                         mattes_true, trimaps_true, images)
+                    val_loss += loss.item() * current_batch_size
                     val_loss_list.extend(loss_list_fn(semantic_pred, detail_pred, matte_pred,
                                          mattes_true, trimaps_true, images).tolist())
-                    # semantic_val_loss += semantic_loss.item()
-                    # detail_val_loss += detail_loss.item()
-                    # matte_val_loss += matte_loss.item()
+                    semantic_val_loss += semantic_loss.item() * current_batch_size
+                    detail_val_loss += detail_loss.item() * current_batch_size
+                    matte_val_loss += matte_loss.item() * current_batch_size
 
                     #images_to_save = []
                     for k in range(len(matte_pred)):
@@ -199,11 +205,13 @@ def train_from_folder(cfg: DictConfig):
                 #table = wandb.Table(dataframe=df)
                 #wandb.log({"val loss": wandb.plot.scatter(table, "step", "error")})
                 wandb.log({'val loss': fig})
+                #wandb.log({'val loss scalar': val_loss / val_dataset_size})
                 wandb.log({"examples": images_to_save})
-                #wandb.log({"val loss": val_loss / val_dataset_size,})
-                           # "val semantic loss": semantic_val_loss / val_dataset_size,
-                           # "val detail loss": detail_val_loss / val_dataset_size,
-                           # "val matte loss": matte_val_loss / val_dataset_size})
+                print(len(images_to_save))
+                wandb.log({"val loss total": val_loss / val_dataset_size,
+                           "val semantic loss": semantic_val_loss / val_dataset_size,
+                           "val detail loss": detail_val_loss / val_dataset_size,
+                           "val matte loss": matte_val_loss / val_dataset_size})
 
         # if (step + 1) % cfg.logging.sample_step == 0:
         #     network.eval()

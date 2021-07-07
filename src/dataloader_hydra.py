@@ -645,7 +645,7 @@ class VideoMatteDatasetWOTrimapV2:
         self.mode = mode
         self.verbose = verbose
 
-        self.preprocess()
+        self.preprocess(self.bg_per_fg)
 
     def preprocess(self, bg_per_fg=10):
         for i in range(len(self.foreground_list)):
