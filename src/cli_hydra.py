@@ -88,7 +88,7 @@ def train_from_folder(cfg: DictConfig):
     #     start = cfg.pretrained_model + 1
     # else:
     #     start = 0
-    loss_fn = instantiate(cfg.training.loss)
+    loss_fn = instantiate(cfg.training.loss, detailed=True)
     print(loss_fn)
     loss_list_fn = instantiate(
         cfg.training.loss, average=False,)
@@ -128,8 +128,9 @@ def train_from_folder(cfg: DictConfig):
         network.freeze_bn()
 
         semantic_pred, detail_pred, matte_pred = network(images, "train")
-        loss = loss_fn(semantic_pred, detail_pred, matte_pred,
-                       mattes_true, trimaps_true, images)
+        (semantic_loss, detail_loss,
+         matte_loss, loss) = loss_fn(semantic_pred, detail_pred, matte_pred,
+                                           mattes_true, trimaps_true, images)
 
         loss.backward()
         optimizer.step()
@@ -147,17 +148,24 @@ def train_from_folder(cfg: DictConfig):
                 elapsed = str(datetime.timedelta(seconds=elapsed))
                 print(f"Elapsed [{elapsed}], step [{step + 1} / {cfg.training.total_step}], "
                       f"loss: {loss.item():.4f}")
-                wandb.log({"loss": loss.item(),})
-                           # "semantic loss": semantic_loss.item(),
-                           # "detail loss": detail_loss.item(),
-                           # "matte loss": matte_loss.item()})
+                wandb.log({"loss": loss.item(),
+                           "semantic loss": semantic_loss.item(),
+                           "detail loss": detail_loss.item(),
+                           "matte loss": matte_loss.item()})
 
-        del semantic_pred, detail_pred, matte_pred
+        del semantic_pred, detail_pred
         torch.cuda.empty_cache()
 
         # new validation step
 
         if (step + 1) % cfg.logging.sample_step == 0:
+            train_images_to_save = []
+            for k in range(len(matte_pred)):
+                train_images_to_save.append(wandb.Image(tensor_to_image(matte_pred[k]), caption="Label"))
+            wandb.log({"train examples": train_images_to_save})
+            del matte_pred
+
+
             network.eval()
             val_loss_list = []
             val_loss = 0
