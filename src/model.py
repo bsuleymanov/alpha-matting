@@ -107,7 +107,7 @@ class SEBlock(nn.Module):
 
 
 class LRBranch(nn.Module):
-    def __init__(self, backbone):
+    def __init__(self, backbone, out_channels=3):
         super(LRBranch, self).__init__()
         enc_channels = backbone.enc_channels
         self.backbone = backbone
@@ -116,7 +116,7 @@ class LRBranch(nn.Module):
                                     stride=1, padding=2)
         self.conv_lr8x = ConvBlock(enc_channels[3], enc_channels[2], kernel_size=5,
                                    stride=1, padding=2)
-        self.conv_lr = ConvBlock(enc_channels[2], 3, kernel_size=3,
+        self.conv_lr = ConvBlock(enc_channels[2], out_channels, kernel_size=3,
                                    stride=2, padding=1, use_ibn=False, use_relu=False)
 
     def forward(self, image, mode="train"):
@@ -136,7 +136,7 @@ class LRBranch(nn.Module):
         return semantic_pred, lr8x, [enc2x, enc4x]
 
 class HRBranch(nn.Module):
-    def __init__(self, hr_channels, enc_channels):
+    def __init__(self, hr_channels, enc_channels, out_channels=3):
         super(HRBranch, self).__init__()
         self.tohr_enc2x = ConvBlock(enc_channels[0], hr_channels, 1,
                                     stride=1, padding=0)
@@ -159,7 +159,7 @@ class HRBranch(nn.Module):
         )
         self.conv_hr = nn.Sequential(
             ConvBlock(hr_channels + 3, hr_channels, 3, stride=1, padding=1),
-            ConvBlock(hr_channels, 3, 1, stride=1, padding=0,
+            ConvBlock(hr_channels, out_channels, 1, stride=1, padding=0,
                       use_ibn=False, use_relu=False),
         )
 
@@ -190,7 +190,7 @@ class HRBranch(nn.Module):
         return detail_pred, hr2x
 
 class FusionBranch(nn.Module):
-    def __init__(self, hr_channels, enc_channels):
+    def __init__(self, hr_channels, enc_channels, out_channels=3):
         super(FusionBranch, self).__init__()
         self.conv_lr4x = ConvBlock(enc_channels[2], hr_channels, 5,
                                    stride=1, padding=2)
@@ -199,7 +199,7 @@ class FusionBranch(nn.Module):
         self.conv_f = nn.Sequential(
             ConvBlock(hr_channels + 3, int(hr_channels / 2), 3,
                       stride=1, padding=1),
-            ConvBlock(int(hr_channels / 2), 3, 1,
+            ConvBlock(int(hr_channels / 2), out_channels, 1,
                       stride=1, padding=0, use_ibn=False, use_relu=False)
         )
 
@@ -288,7 +288,7 @@ class MODNet1(nn.Module):
 
 class MODNet(nn.Module):
     def __init__(self, in_channels=3, hr_channels=64, backbone_arch="resnet18",
-                 backbone_pretrained=True):
+                 backbone_pretrained=True, out_channels=3):
         super(MODNet, self).__init__()
         self.in_channels = in_channels
         self.hr_channels = hr_channels
@@ -296,9 +296,9 @@ class MODNet(nn.Module):
         self.backbone_pretrained = backbone_pretrained
 
         self.backbone = SUPPORTED_BACKBONES[self.backbone_arch](self.in_channels)
-        self.lr_branch = LRBranch(self.backbone)
-        self.hr_branch = HRBranch(self.hr_channels, self.backbone.enc_channels)
-        self.f_branch = FusionBranch(self.hr_channels, self.backbone.enc_channels)
+        self.lr_branch = LRBranch(self.backbone, out_channels)
+        self.hr_branch = HRBranch(self.hr_channels, self.backbone.enc_channels, out_channels)
+        self.f_branch = FusionBranch(self.hr_channels, self.backbone.enc_channels, out_channels)
 
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
@@ -310,7 +310,7 @@ class MODNet(nn.Module):
             self.backbone.load_pretrained_ckpt()
 
         #self.freeze_bn()
-        #self.freeze_backbone()
+        self.freeze_backbone()
 
     def forward(self, image, mode='train'):
         semantic_pred, lr8x, [enc2x, enc4x] = self.lr_branch(image, mode)

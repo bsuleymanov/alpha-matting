@@ -104,18 +104,22 @@ def train_from_folder(cfg: DictConfig):
         cfg.training.optimizer,
         params=[e for e in network.parameters()
                 if e.requires_grad])
+    print(optimizer)
 
-    lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=int(0.25 * total_epoch), gamma=0.1)
+    #lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=int(0.25 * total_epoch), gamma=0.1)
+    lr_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau
 
     val_loss_arr = []
     start_time = time.time()
     start = 0
     for step in range(start, cfg.training.total_step):
         try:
-            images, mattes_true, foregrounds, backgrounds = next(data_iter)
+            (images, mattes_true, foregrounds, backgrounds,
+             foregrounds_names, background_names, matte_names) = next(data_iter)
         except:
             data_iter = iter(dataloader)
-            images, mattes_true, foregrounds, backgrounds = next(data_iter)
+            (images, mattes_true, foregrounds, backgrounds,
+             foregrounds_names, background_names, matte_names) = next(data_iter)
 
         images = images.to(cfg.training.device).float()
         mattes_true = mattes_true.to(cfg.training.device).float()
@@ -135,7 +139,7 @@ def train_from_folder(cfg: DictConfig):
         loss.backward()
         optimizer.step()
         optimizer.zero_grad()
-        lr_scheduler.step(loss.item())
+        #lr_scheduler.step(loss.item())
 
         #if (step + 1) % accumulation_steps == 0:  # Wait for several backward steps
         #    optimizer.step()
@@ -154,6 +158,7 @@ def train_from_folder(cfg: DictConfig):
                            "matte loss": matte_loss.item()})
 
         del semantic_pred, detail_pred
+        del images, mattes_true
         torch.cuda.empty_cache()
 
         # new validation step
@@ -161,10 +166,15 @@ def train_from_folder(cfg: DictConfig):
         if (step + 1) % cfg.logging.sample_step == 0:
             train_images_to_save = []
             for k in range(len(matte_pred)):
-                train_images_to_save.append(wandb.Image(tensor_to_image(matte_pred[k]), caption="Label"))
+                train_images_to_save.append(wandb.Image(tensor_to_image(matte_pred[k]), caption=matte_names[k]))
             wandb.log({"train examples": train_images_to_save})
             del matte_pred
-
+            trimaps_to_save = []
+            for k in range(len(trimaps_true)):
+                trimaps_to_save.append(wandb.Image(tensor_to_image(trimaps_true[k]), caption=f"Trimap {matte_names[k]}"))
+            wandb.log({"trimaps": trimaps_to_save})
+            del trimaps_true
+            torch.cuda.empty_cache()
 
             network.eval()
             val_loss_list = []
@@ -175,7 +185,9 @@ def train_from_folder(cfg: DictConfig):
             val_dataset_size = len(validation_dataloader.dataset)
             images_to_save = []
             with torch.no_grad():
-                for images, mattes_true, foregrounds, backgrounds in validation_dataloader:
+                for images, mattes_true, foregrounds, backgrounds, \
+                    foregrounds_names, background_names, matte_names in validation_dataloader:
+
                     images = images.to(cfg.testing.device).float()
                     mattes_true = mattes_true.to(cfg.testing.device).float()
                     trimaps_true = generate_trimap_kornia(mattes_true).float()
@@ -199,7 +211,7 @@ def train_from_folder(cfg: DictConfig):
 
                     #images_to_save = []
                     for k in range(len(matte_pred)):
-                        images_to_save.append(wandb.Image(tensor_to_image(matte_pred[k]), caption="Label"))
+                        images_to_save.append(wandb.Image(tensor_to_image(matte_pred[k]), caption=matte_names[k]))
 
                     del semantic_pred, detail_pred, matte_pred,
                     torch.cuda.empty_cache()
@@ -207,6 +219,7 @@ def train_from_folder(cfg: DictConfig):
                 val_loss_arr.extend([[x, y] for (x, y) in zip([step] * len(val_loss_list), val_loss_list)])
                 df = pd.DataFrame(data=val_loss_arr, columns=['step', 'error'])
                 #print(df)
+
                 fig = px.scatter(x=df.step.values, y=df.error.values)
                 #print(np.array(val_loss_arr), np.array(val_loss_arr).shape)
                 #table = wandb.Table(data=val_loss_arr, columns=['step', 'error'])
