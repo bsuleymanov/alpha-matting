@@ -74,7 +74,7 @@ class ModNetLoss:
 
     def __call__(self, semantic_pred, detail_pred, matte_pred,
                  matte_true, trimap, images):
-        boundary = (trimap == 0) + (trimap == 1)
+        boundary = (trimap <= 0) + (trimap >= 1)
         semantic_loss = semantic_loss_fn(semantic_pred, matte_true, boundary, self.blurer, self.average)
         detail_loss = detail_loss_fn(detail_pred, trimap, boundary, matte_true, self.average)
         matte_loss = matte_loss_fn(matte_pred, matte_true, trimap, boundary, images, self.average)

@@ -1,0 +1,86 @@
+logging:
+  project: alpha-matting
+  entity: bsuleymanov
+  sample_path: "./sample_path"
+  model_save_path: "./models"
+  input_image_save_path: "./input_save"
+  visual_debug: false
+  verbose: 1
+  log_step: 10
+
+data:
+  train:
+    image_path: "../data/dataset_split/train/"
+    foreground_path: "../data/foregrounds_split/train/"
+    background_path: "../data/backgrounds/"
+    image_size: 256
+    mode: "train"
+
+    #####
+    transforms:
+      shared_pre:
+        _target_: albumentations.Compose
+        transforms:
+          - _target_: albumentations.SmallestMaxSize
+            max_size: ${.....image_size}
+          - _target_: albumentations.RandomCrop
+            height: ${.....image_size}
+            width: ${.....image_size}
+      composition:
+        _target_: albumentations.Compose
+        transforms:
+          - _target_: albumentations.Normalize
+            mean: (0.5, 0.5, 0.5)
+            std: (0.5, 0.5, 0.5)
+      foreground:
+      background:
+      matte: null
+      shared_post:
+        _target_: albumentations.pytorch.ToTensorV2
+    #####
+
+    #####
+    dataloader:
+      _target_: src.dataloader_hydra.MaadaaMattingLoaderV2
+      image_path: ${..image_path} # MISSING
+      foreground_path: ${..foreground_path} # MISSING
+      background_path: ${..background_path} # MISSING
+      image_size: ${..image_size}
+      batch_size: 2
+      drop_last: false
+      shuffle: false
+      num_workers: 8
+      mode: ${..mode}
+      shared_pre_transform: ${..transforms.shared_pre}
+      composition_transform: ${..transforms.composition}
+      foreground_transform: ${..transforms.foreground}
+      background_transform: ${..transforms.background}
+      matte_transform: ${..transforms.matte}
+      shared_post_transform: ${..transforms.shared_post}
+    #####
+
+training:
+  total_step: 150000
+  device: cuda
+  loss:
+    _target_: src.losses.ModNetLoss
+    _recursive_: false
+    blurer:
+      _target_: src.network.GaussianBlurLayer
+      n_channels: 3
+      kernel_size: 3
+    semantic_scale: 10.0
+    detail_scale: 10.0
+    matte_scale: 1.0
+    average: true
+    device: ${..device}
+  parallel: false
+  optimizer:
+    _target_: torch.optim.Adam
+
+network:
+  _target_: src.network.MODNet
+  in_channels: 3
+  hr_channels: 64
+  backbone_arch: "resnet18"
+  backbone_pretrained: true

@@ -20,8 +20,10 @@ def generate_trimap_from_alpha(masks):
     return boundaries
 
 def generate_trimap(matte):
-    kernel_size = random.choice(range(1, 5))
-    iterations = random.randint(1, 20)
+    matte = matte * 255
+    kernel_size = random.choice(range(5, 9))
+    #iterations = random.randint(1, 20)
+    iterations = 3
     kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE,
                                        (kernel_size, kernel_size))
     dilated = cv2.dilate(matte, kernel, iterations)
@@ -30,18 +32,20 @@ def generate_trimap(matte):
     trimap.fill(128)
     trimap[eroded >= 255] = 255
     trimap[dilated <= 0] = 0
-    return trimap
+
+    return trimap / 255.
 
 
 def generate_trimap_kornia(matte):
-    kernel_size = random.choice(range(3, 26, 2))
+    kernel_size = random.choice(range(3, 29, 2))
     kernel = torch.ones(kernel_size, kernel_size).to('cuda')
     dilated = dilation(matte, kernel)
+    dilated = torch.where(dilated <= 0., dilated, torch.ones_like(dilated))
     eroded = erosion(matte, kernel)
-    trimap = torch.ones_like(matte) * 128
-    trimap[eroded >= 255] = 255
-    trimap[dilated <= 0] = 0
-    return trimap / 255.
+    eroded = torch.where(eroded <= 0., eroded, torch.ones_like(eroded))
+    trimap = dilated.clone()
+    trimap[(dilated - eroded) > 0] = 0.5
+    return trimap, eroded, dilated
 
 
 def mkdir_if_empty_or_not_exist(dir_name):

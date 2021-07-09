@@ -564,7 +564,10 @@ class MaadaaMattingDatasetWOTrimapV2:
         #print(matte.shape, foreground.shape, background.shape)
         composition = matte * foreground + (1 - matte) * background
 
-        return (composition, matte, foreground, background)
+        #return (composition, matte, foreground, background)
+
+        return (composition, matte, foreground, background,
+                '', '', '')
 
     def __len__(self):
         if self.mode == "train":

@@ -1,6 +1,7 @@
 #from dataloader import MaadaaMattingLoader, MattingTestLoader, \
 #                       MattingLoaderDeprecated, MaadaaMattingLoaderV2
-from utils import mkdir_if_empty_or_not_exist, generate_trimap_kornia
+from utils import mkdir_if_empty_or_not_exist, generate_trimap_kornia, \
+    generate_trimap
 import time
 import datetime
 from pathlib import Path
@@ -23,6 +24,7 @@ from functools import partial
 import pandas as pd
 import seaborn as sns
 import plotly.express as px
+import gc
 
 import hydra
 from omegaconf import OmegaConf, DictConfig, MISSING
@@ -123,7 +125,11 @@ def train_from_folder(cfg: DictConfig):
 
         images = images.to(cfg.training.device).float()
         mattes_true = mattes_true.to(cfg.training.device).float()
-        trimaps_true = generate_trimap_kornia(mattes_true).float()
+        trimaps_true, eroded, dilated = generate_trimap_kornia(mattes_true)#.float()
+        # trimaps_true = mattes_true.clone().cpu().numpy()
+        # for j, matte_true in enumerate(mattes_true):
+        #     trimaps_true[j] = generate_trimap(matte_true.cpu().numpy())
+        # trimaps_true = torch.cuda.FloatTensor(trimaps_true)
 
         if cfg.logging.visual_debug:
             save_image(make_grid(images), str(input_image_save_path / f"{step+1}_input.png"))
@@ -134,7 +140,7 @@ def train_from_folder(cfg: DictConfig):
         semantic_pred, detail_pred, matte_pred = network(images, "train")
         (semantic_loss, detail_loss,
          matte_loss, loss) = loss_fn(semantic_pred, detail_pred, matte_pred,
-                                           mattes_true, trimaps_true, images)
+                                     mattes_true, trimaps_true, images)
 
         loss.backward()
         optimizer.step()
@@ -158,22 +164,46 @@ def train_from_folder(cfg: DictConfig):
                            "matte loss": matte_loss.item()})
 
         del semantic_pred, detail_pred
-        del images, mattes_true
+        del images
         torch.cuda.empty_cache()
 
         # new validation step
 
         if (step + 1) % cfg.logging.sample_step == 0:
+
             train_images_to_save = []
             for k in range(len(matte_pred)):
                 train_images_to_save.append(wandb.Image(tensor_to_image(matte_pred[k]), caption=matte_names[k]))
             wandb.log({"train examples": train_images_to_save})
-            del matte_pred
+            del matte_pred, train_images_to_save
+
             trimaps_to_save = []
             for k in range(len(trimaps_true)):
                 trimaps_to_save.append(wandb.Image(tensor_to_image(trimaps_true[k]), caption=f"Trimap {matte_names[k]}"))
             wandb.log({"trimaps": trimaps_to_save})
-            del trimaps_true
+            del trimaps_true, trimaps_to_save
+
+            eroded_to_save = []
+            for k in range(len(eroded)):
+                eroded_to_save.append(
+                    wandb.Image(tensor_to_image(eroded[k]), caption=f"Eroded {matte_names[k]}"))
+            wandb.log({"eroded": eroded_to_save})
+            del eroded, eroded_to_save
+
+            dilated_to_save = []
+            for k in range(len(dilated)):
+                dilated_to_save.append(
+                    wandb.Image(tensor_to_image(dilated[k]), caption=f"Dilated {matte_names[k]}"))
+            wandb.log({"dilated": dilated_to_save})
+            del dilated, dilated_to_save
+
+            train_true_images_to_save = []
+            for k in range(len(mattes_true)):
+                train_true_images_to_save.append(wandb.Image(tensor_to_image(mattes_true[k]), caption=matte_names[k]))
+            wandb.log({"train true examples": train_true_images_to_save})
+            del mattes_true, train_true_images_to_save
+
+            gc.collect()
             torch.cuda.empty_cache()
 
             network.eval()
@@ -190,7 +220,7 @@ def train_from_folder(cfg: DictConfig):
 
                     images = images.to(cfg.testing.device).float()
                     mattes_true = mattes_true.to(cfg.testing.device).float()
-                    trimaps_true = generate_trimap_kornia(mattes_true).float()
+                    trimaps_true, eroded, dilated = generate_trimap_kornia(mattes_true)#.float()
 
                     semantic_pred, detail_pred, matte_pred = network(images, "train")
 
