@@ -44,6 +44,8 @@ from hydra.utils import to_absolute_path
 from typing import Any, Optional, List
 
 from hydra.utils import to_absolute_path
+from kornia.enhance.normalize import denormalize, normalize
+
 
 class OptimizerWrapper:
     def __init__(self, cfg):
@@ -124,19 +126,26 @@ def train_from_folder(cfg: DictConfig):
              foregrounds_names, background_names, matte_names) = next(data_iter)
 
         images = images.to(cfg.training.device).float()
+        images = normalize(images, torch.cuda.FloatTensor([0.5, 0.5, 0.5]), torch.cuda.FloatTensor([0.5, 0.5, 0.5]))
         mattes_true = mattes_true.to(cfg.training.device).float()
         trimaps_true, eroded, dilated = generate_trimap_kornia(mattes_true)#.float()
+        #print("Eroded min-max:", eroded.min(), eroded.max())
+        #print("Dilated min-max:", dilated.min(), dilated.max())
         # trimaps_true = mattes_true.clone().cpu().numpy()
+        # eroded = mattes_true.clone().cpu().numpy()
+        # dilated = mattes_true.clone().cpu().numpy()
         # for j, matte_true in enumerate(mattes_true):
-        #     trimaps_true[j] = generate_trimap(matte_true.cpu().numpy())
+        #     trimaps_true[j], eroded[j], dilated[j] = generate_trimap(matte_true.cpu().numpy())
         # trimaps_true = torch.cuda.FloatTensor(trimaps_true)
+        # eroded = torch.cuda.FloatTensor(eroded)
+        # dilated = torch.cuda.FloatTensor(dilated)
 
         if cfg.logging.visual_debug:
             save_image(make_grid(images), str(input_image_save_path / f"{step+1}_input.png"))
 
         network.train()
         network.freeze_bn()
-
+        #print(f"IMAGES", images.size())
         semantic_pred, detail_pred, matte_pred = network(images, "train")
         (semantic_loss, detail_loss,
          matte_loss, loss) = loss_fn(semantic_pred, detail_pred, matte_pred,
@@ -164,12 +173,18 @@ def train_from_folder(cfg: DictConfig):
                            "matte loss": matte_loss.item()})
 
         del semantic_pred, detail_pred
-        del images
+
         torch.cuda.empty_cache()
 
         # new validation step
 
         if (step + 1) % cfg.logging.sample_step == 0:
+
+            train_images_to_save = []
+            for k in range(len(images)):
+                train_images_to_save.append(wandb.Image(tensor_to_image(images[k]), caption=matte_names[k]))
+            wandb.log({"train pic examples": train_images_to_save})
+            del images, train_images_to_save
 
             train_images_to_save = []
             for k in range(len(matte_pred)):
@@ -219,6 +234,8 @@ def train_from_folder(cfg: DictConfig):
                     foregrounds_names, background_names, matte_names in validation_dataloader:
 
                     images = images.to(cfg.testing.device).float()
+                    images = normalize(images, torch.cuda.FloatTensor([0.5, 0.5, 0.5]),
+                                       torch.cuda.FloatTensor([0.5, 0.5, 0.5]))
                     mattes_true = mattes_true.to(cfg.testing.device).float()
                     trimaps_true, eroded, dilated = generate_trimap_kornia(mattes_true)#.float()
 
@@ -258,7 +275,7 @@ def train_from_folder(cfg: DictConfig):
                 wandb.log({'val loss': fig})
                 #wandb.log({'val loss scalar': val_loss / val_dataset_size})
                 wandb.log({"examples": images_to_save})
-                print(len(images_to_save))
+                #print(len(images_to_save))
                 wandb.log({"val loss total": val_loss / val_dataset_size,
                            "val semantic loss": semantic_val_loss / val_dataset_size,
                            "val detail loss": detail_val_loss / val_dataset_size,
@@ -286,86 +303,36 @@ def train_from_folder(cfg: DictConfig):
         #if (step + 1) % step_per_epoch:
             #lr_scheduler.step()
 
-
-def inference_from_folder(
-    data_dir="../data",
-    results_dir="../data/results",
-    models_dir="../",
-    image_size=512,
-    version="mobilenetv2",
-    total_step=1000000,
-    batch_size=30,
-    accumulation_steps=4,
-    n_workers=8,
-    learning_rate=0.0002,
-    lr_decay=0.95,
-    beta1=0.5,
-    beta2=0.999,
-    test_size=2824,
-    model_name="network.pth",
-    pretrained_model=None,
-    is_train=False,
-    parallel=False,
-    use_tensorboard=False,
-    image_path="../data/dataset/val/",
-    mask_path="../data/dataset/train/seg",
-    log_path="./logs",
-    model_load_path="./models_adam_23042021",
-    inference_path ="./result_submission",
-    test_image_path="../data/dataset/val/image",
-    test_mask_path="./test_results",
-    test_color_mask_path="./test_color_visualize",
-    log_step=10,
-    sample_step=100,
-    model_save_step=1.0,
-    device="cuda",
-    verbose=1,
-    dataset="matting",
-    semantic_scale=10.0,
-    detail_scale=10.0,
-    matte_scale=1.0
-):
-    inference_path = Path(inference_path)
-    model_load_path = Path(model_load_path)
+@hydra.main(config_path="configs/maadaa/modnet", config_name="full_experiment")
+def inference_from_folder(cfg: DictConfig):
+    inference_path = Path(cfg.inference.sample_path)
+    model_load_path = Path(cfg.inference.model_load_path)
     mkdir_if_empty_or_not_exist(inference_path)
-    #mkdir_if_empty_or_not_exist(model_load_path)
 
-    dataloader = MattingTestLoader(image_path, image_size,
-                                   batch_size, is_train).loader()
+    dataloader = instantiate(cfg.data.inference.dataloader).loader
     data_iter = iter(dataloader)
 
-    network = MODNet(backbone_pretrained=False).to(device)
-    network.load_state_dict(torch.load(f"{model_load_path}/2393_network.pth"))
+    network = instantiate(cfg.network).to(cfg.inference.device)
+    network.load_state_dict(torch.load(model_load_path / cfg.inference.saved_model_name))
     network.eval()
-    #network.freeze_bn()
 
-    if verbose > 0:
+    if cfg.inference.verbose > 0:
         print(network)
 
     start_time = time.time()
     for step in tqdm.tqdm(range(len(dataloader))):
         try:
-            images, paths, orig_sizes = next(data_iter)
+            (images, image_names) = next(data_iter)
         except:
             data_iter = iter(dataloader)
-            images, paths, orig_sizes = next(data_iter)
-        images = images.to(device)
+            (images, image_names) = next(data_iter)
+        images = images.to(cfg.inference.device).float()
         # semantic loss
         with torch.no_grad():
             _, _, mattes_pred = network(images, "test")
             for k, matte_pred in enumerate(mattes_pred):
-                #print('/'.join([str(inference_path)]+paths[k].split('/')[4:-1]))
-                Path('/'.join([str(inference_path)]+paths[k].split('/')[4:-1])).mkdir(parents=True, exist_ok=True)
-                width, height = orig_sizes[0][k], orig_sizes[1][k]
-                save_transform = transforms.Compose([
-                    transforms.ToPILImage(),
-                    transforms.Resize((height, width)),
-                    transforms.ToTensor()
-                ])
-                matte_pred = save_transform(matte_pred.data)
-                save_image(matte_pred,
-                           f"{inference_path}/{'/'.join(paths[k].split('/')[4:])[:-4]}.png")
-
+                save_image(tensor_to_image(matte_pred),
+                           f"{cfg.inference.sample_path}/{image_names[k]}")
 
 def main():
     train_from_folder()

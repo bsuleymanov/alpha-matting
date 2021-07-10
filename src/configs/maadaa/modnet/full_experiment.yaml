@@ -6,10 +6,44 @@ logging:
   input_image_save_path: "./input_save"
   visual_debug: false
   verbose: 1
-  log_step: 10
-  sample_step: 10 # 1000
+  log_step: 100
+  sample_step: 1000 # 1000
+
+inference:
+  sample_path: "samples_10072021"
+  model_load_path: "models_10072021"
+  saved_model_name: "98000_network.pth"
+  device: cuda
+  verbose: 0
 
 data:
+  inference:
+    transform:
+    image_size: 256
+    dataloader:
+      _target_: src.dataloader_hydra.AISegmentInferenceLoader
+      image_dir: "../data/to_inference_10072021"
+      batch_size: 4
+      drop_last: false
+      shuffle: false
+      num_workers: 8
+      image_transform:
+        _target_: albumentations.Compose
+        transforms:
+          - _target_: albumentations.SmallestMaxSize
+            max_size: ${.....image_size}
+          - _target_: albumentations.RandomCrop
+            height: ${.....image_size}
+            width: ${.....image_size}
+          - _target_: albumentations.Normalize
+            mean: [0.5, 0.5, 0.5]
+            std: [0.5, 0.5, 0.5]
+          - _target_: albumentations.pytorch.ToTensorV2
+
+
+    device: cuda
+    saved_model_name: 90000_network.pth
+
   train:
     #image_path: "../data/dataset_split/train/"
     foreground_csv: "../data/AISegment/train_images.csv"
@@ -28,17 +62,17 @@ data:
           - _target_: albumentations.RandomCrop
             height: ${.....image_size}
             width: ${.....image_size}
-      composition:
-        _target_: albumentations.Compose
-        transforms:
-          - _target_: albumentations.Normalize
-            mean: (0.5, 0.5, 0.5)
-            std: (0.5, 0.5, 0.5)
+      composition: null
+#        _target_: albumentations.Normalize
+#        mean: [ 0.5, 0.5, 0.5 ]
+#        std: [ 0.5, 0.5, 0.5 ]
       foreground:
       background:
       matte: null
       shared_post:
-        _target_: albumentations.pytorch.ToTensorV2
+        _target_: albumentations.Compose
+        transforms:
+          - _target_: albumentations.pytorch.ToTensorV2
     #####
 
     #####
@@ -50,10 +84,10 @@ data:
       background_dir: ${..background_dir}
       #matte_dir: ${..matte_dir}
       image_size: ${..image_size}
-      batch_size: 8
+      batch_size: 32
       drop_last: false
       shuffle: false
-      num_workers: 8
+      num_workers: 16
       bg_per_fg: 1
       mode: ${..mode}
       use_one_img_per_dir: false
@@ -82,17 +116,17 @@ data:
           - _target_: albumentations.RandomCrop
             height: ${.....image_size}
             width: ${.....image_size}
-      composition:
-        _target_: albumentations.Compose
-        transforms:
-          - _target_: albumentations.Normalize
-            mean: (0.5, 0.5, 0.5)
-            std: (0.5, 0.5, 0.5)
+      composition: null
+#        _target_: albumentations.Normalize
+#        mean: [ 0.5, 0.5, 0.5 ]
+#        std: [ 0.5, 0.5, 0.5 ]
       foreground:
       background:
       matte: null
       shared_post:
-        _target_: albumentations.pytorch.ToTensorV2
+        _target_: albumentations.Compose
+        transforms:
+          - _target_: albumentations.pytorch.ToTensorV2
     #####
 
     #####
@@ -104,10 +138,10 @@ data:
       background_dir: ${..background_dir}
       #matte_dir: ${..matte_dir}
       image_size: ${..image_size}
-      batch_size: 8
+      batch_size: 32
       drop_last: false
       shuffle: false
-      num_workers: 8
+      num_workers: 16
       mode: ${..mode}
       bg_per_fg: 1
       use_one_img_per_dir: false

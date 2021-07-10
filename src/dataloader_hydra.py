@@ -760,7 +760,7 @@ class AISegmentDatasetWOTrimapV2:
                  bg_per_fg=10, mode="train", use_one_img_per_dir=False, verbose=0):
         self.mode = mode
         if mode == "test":
-            self.n_samples = 10
+            self.n_samples = 1024
         self.bg_per_fg = bg_per_fg
         #self.foreground_list = list(map(str, Path(foreground_dir).rglob("*_foreground.jpg")))
         self.background_list = list(map(str, Path(background_dir).rglob("*.jpg")))
@@ -855,6 +855,8 @@ class AISegmentDatasetWOTrimapV2:
             background = background * (1 - matte)
         foreground = self.foreground_transform(image=foreground)#["image"]
         background = self.background_transform(image=background)#["image"]
+        #foreground = self.composition_transform(image=foreground)['image']
+        #background = self.composition_transform(image=background)['image']
 
         height, width = foreground.shape[:2]
         if background_path != "original":
@@ -872,6 +874,7 @@ class AISegmentDatasetWOTrimapV2:
         matte = self.matte_transform(image=matte)#['image']
         composition, matte = self.shared_post_transform(image=composition, mask=matte).values()
 
+
         foreground = composition[:fg_channels, :, :]
         background = composition[fg_channels:, :, :]
         matte = matte.permute(2, 0, 1)
@@ -881,6 +884,7 @@ class AISegmentDatasetWOTrimapV2:
             composition = foreground + (1 - matte) * background
         else:
             composition = foreground + background
+
 
         return (composition, matte, foreground, background,
                 foreground_name, background_name, matte_name)
@@ -914,6 +918,58 @@ class AISegmentLoader:
             foreground_transform, background_transform,
             matte_transform, shared_post_transform, bg_per_fg,
             mode, use_one_img_per_dir)
+        print(f"num_workers: {num_workers}")
+        self.loader = torch.utils.data.DataLoader(
+            dataset=dataset, batch_size=batch_size,
+            shuffle=shuffle, num_workers=num_workers,
+            drop_last=drop_last)
+
+class AISegmentInferenceDatasetWOTrimapV2:
+    def __init__(self, image_dir, image_transform=None, verbose=0):
+        self.image_list = list(map(str, Path(image_dir).rglob("*.jpg")))
+
+        print("Inference", len(self.image_list))
+
+        self.image_transform = set_transform(image_transform)
+        self.dataset = []
+        self.verbose = verbose
+        self.preprocess()
+
+    def preprocess(self):
+        for i in range(len(self.image_list)):
+            image_path = self.image_list[i]
+            if self.verbose > 0:
+                print(image_path)
+            self.dataset.append([image_path])
+        if self.verbose > 0:
+            print("Finished preprocessing the AISegment dataset...")
+
+    def __getitem__(self, index):
+        dataset = self.dataset
+        image_path = dataset[index][0]
+        image_name = str(image_path).split('/')[-1]
+        if image_name[-3:] == "png":
+            image = np.array(Image.open(image_path))
+        elif image_name[-3:] == "jpg":
+            image = jpeg.JPEG(image_path).decode()
+        print(image.shape)
+        image = image / 255.
+        print(self.image_transform)
+        image = self.image_transform(image=image)['image']
+
+        return (image, image_name)
+
+    def __len__(self):
+        return len(self.dataset)
+
+class AISegmentInferenceLoader:
+    def __init__(self, image_dir, batch_size=8,
+                 drop_last=False, shuffle=False, num_workers=8,
+                 image_transform=None):
+        print(f"shuffle: {shuffle}")
+        image_dir = Path(to_absolute_path(image_dir))
+        dataset = AISegmentInferenceDatasetWOTrimapV2(
+            image_dir, image_transform)
         print(f"num_workers: {num_workers}")
         self.loader = torch.utils.data.DataLoader(
             dataset=dataset, batch_size=batch_size,

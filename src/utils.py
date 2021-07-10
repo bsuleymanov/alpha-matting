@@ -33,10 +33,11 @@ def generate_trimap(matte):
     trimap[eroded >= 255] = 255
     trimap[dilated <= 0] = 0
 
-    return trimap / 255.
+    return trimap / 255., eroded, dilated
 
 
 def generate_trimap_kornia(matte):
+    #print(matte.max())
     kernel_size = random.choice(range(3, 29, 2))
     kernel = torch.ones(kernel_size, kernel_size).to('cuda')
     dilated = dilation(matte, kernel)
