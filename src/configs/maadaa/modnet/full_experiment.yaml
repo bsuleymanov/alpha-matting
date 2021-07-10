@@ -171,9 +171,9 @@ training:
     device: ${..device}
   parallel: false
   optimizer:
-    _target_: torch.optim.Adam #torch.optim.SGD
-    #lr: 0.01
-    #momentum: 0.9
+    _target_: torch.optim.SGD
+    lr: 0.01
+    momentum: 0.9
 
 testing:
   device: cuda

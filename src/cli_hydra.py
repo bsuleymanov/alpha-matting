@@ -110,8 +110,8 @@ def train_from_folder(cfg: DictConfig):
                 if e.requires_grad])
     print(optimizer)
 
-    #lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=int(0.25 * total_epoch), gamma=0.1)
-    lr_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau
+    lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=int(0.25 * total_epoch), gamma=0.1)
+    #lr_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau
 
     val_loss_arr = []
     start_time = time.time()
@@ -154,7 +154,6 @@ def train_from_folder(cfg: DictConfig):
         loss.backward()
         optimizer.step()
         optimizer.zero_grad()
-        #lr_scheduler.step(loss.item())
 
         #if (step + 1) % accumulation_steps == 0:  # Wait for several backward steps
         #    optimizer.step()
@@ -300,8 +299,8 @@ def train_from_folder(cfg: DictConfig):
             torch.save(network.state_dict(),
                        str(model_save_path / f"{step + 1}_network.pth"))
 
-        #if (step + 1) % step_per_epoch:
-            #lr_scheduler.step()
+        if (step + 1) % step_per_epoch:
+            lr_scheduler.step()
 
 @hydra.main(config_path="configs/maadaa/modnet", config_name="full_experiment")
 def inference_from_folder(cfg: DictConfig):
