@@ -10,8 +10,9 @@ from albumentations.pytorch import ToTensorV2
 from utils import generate_trimap, set_transform
 import cv2
 import random
-from hydra.utils import to_absolute_path
+from hydra.utils import to_absolute_path, get_original_cwd
 import pandas as pd
+import torch.utils.data.distributed as data_dist
 
 
 class MattingDatasetDeprecated:
@@ -760,8 +761,9 @@ class AISegmentDatasetWOTrimapV2:
                  bg_per_fg=10, mode="train", use_one_img_per_dir=False, verbose=0):
         self.mode = mode
         if mode == "test":
-            self.n_samples = 1024
+            self.n_samples = 2
         self.bg_per_fg = bg_per_fg
+
         #self.foreground_list = list(map(str, Path(foreground_dir).rglob("*_foreground.jpg")))
         self.background_list = list(map(str, Path(background_dir).rglob("*.jpg")))
         #self.matte_list = list(map(str, Path(image_dir).rglob("*.png")))
@@ -909,7 +911,9 @@ class AISegmentLoader:
         #foreground_dir = Path(to_absolute_path(foreground_dir))
         #matte_dir = Path(to_absolute_path(matte_dir))
         background_dir = Path(to_absolute_path(background_dir))
+        print(foreground_csv)
         foreground_csv = Path(to_absolute_path(foreground_csv))
+        print(foreground_csv)
         matte_csv = Path(to_absolute_path(matte_csv))
         dataset = AISegmentDatasetWOTrimapV2(
             #foreground_dir, matte_dir,
@@ -923,6 +927,43 @@ class AISegmentLoader:
             dataset=dataset, batch_size=batch_size,
             shuffle=shuffle, num_workers=num_workers,
             drop_last=drop_last)
+
+class AISegmentDistributedLoader:
+    def __init__(self, #foreground_dir, matte_dir,
+                 background_dir, foreground_csv, matte_csv,
+                 image_size=256, batch_size=8, mode="train", use_one_img_per_dir=False,
+                 drop_last=False,
+                 shuffle=True, num_workers=8, bg_per_fg=10,
+                 world_size=1, rank=0,
+                 shared_pre_transform=None, composition_transform=None,
+                 foreground_transform=None, background_transform=None,
+                 matte_transform=None, shared_post_transform=None):
+        print(f"shuffle: {shuffle}")
+        #foreground_dir = Path(to_absolute_path(foreground_dir))
+        #matte_dir = Path(to_absolute_path(matte_dir))
+        background_dir = Path(to_absolute_path(background_dir))
+        foreground_csv = Path(to_absolute_path(foreground_csv))
+        matte_csv = Path(to_absolute_path(matte_csv))
+        dataset = AISegmentDatasetWOTrimapV2(
+            #foreground_dir, matte_dir,
+            background_dir, foreground_csv, matte_csv,
+            shared_pre_transform, composition_transform,
+            foreground_transform, background_transform,
+            matte_transform, shared_post_transform, bg_per_fg,
+            mode, use_one_img_per_dir)
+        data_sampler = data_dist.DistributedSampler(
+            dataset,
+            num_replicas=world_size,
+            rank=rank,
+            shuffle=shuffle,
+            drop_last=drop_last
+        )
+        # REMINDER: NUM_WORKERS WAS SET TO ZERO.
+        self.loader = torch.utils.data.DataLoader(
+            dataset=dataset, batch_size=batch_size,
+            num_workers=0,
+            pin_memory=True,
+            sampler=data_sampler)
 
 class AISegmentInferenceDatasetWOTrimapV2:
     def __init__(self, image_dir, image_transform=None, verbose=0):

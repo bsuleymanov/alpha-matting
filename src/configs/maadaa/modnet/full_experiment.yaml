@@ -1,3 +1,7 @@
+hydra:
+  run:
+    dir: .
+
 logging:
   project: alpha-matting
   entity: bsuleymanov
@@ -6,8 +10,8 @@ logging:
   input_image_save_path: "./input_save"
   visual_debug: false
   verbose: 1
-  log_step: 100
-  sample_step: 1000 # 1000
+  log_step: 1
+  sample_step: 1 # 1000
 
 inference:
   sample_path: "samples_10072021"
@@ -77,17 +81,17 @@ data:
 
     #####
     dataloader:
-      _target_: src.dataloader_hydra.AISegmentLoader
+      _target_: src.dataloader_hydra.AISegmentDistributedLoader
       foreground_csv: ${..foreground_csv}
       matte_csv: ${..matte_csv}
       #foreground_dir: ${..foreground_dir}
       background_dir: ${..background_dir}
       #matte_dir: ${..matte_dir}
       image_size: ${..image_size}
-      batch_size: 32
+      batch_size: 2
       drop_last: false
-      shuffle: false
-      num_workers: 16
+      shuffle: true
+      num_workers: 1
       bg_per_fg: 1
       mode: ${..mode}
       use_one_img_per_dir: false
@@ -131,17 +135,17 @@ data:
 
     #####
     dataloader:
-      _target_: src.dataloader_hydra.AISegmentLoader
+      _target_: src.dataloader_hydra.AISegmentDistributedLoader
       foreground_csv: ${..foreground_csv}
       matte_csv: ${..matte_csv}
       #foreground_dir: ${..foreground_dir}
       background_dir: ${..background_dir}
       #matte_dir: ${..matte_dir}
       image_size: ${..image_size}
-      batch_size: 32
+      batch_size: 2
       drop_last: false
       shuffle: false
-      num_workers: 16
+      num_workers: 1
       mode: ${..mode}
       bg_per_fg: 1
       use_one_img_per_dir: false
@@ -154,7 +158,7 @@ data:
     #####
 
 training:
-  total_step: 150000
+  total_step: 2
   device: cuda
   loss:
     _target_: src.losses.ModNetLoss
@@ -169,11 +173,12 @@ training:
     average: true
     detailed: false
     device: ${..device}
-  parallel: false
+  parallel: true
   optimizer:
-    _target_: torch.optim.SGD
-    lr: 0.01
-    momentum: 0.9
+    _target_: torch.optim.Adam
+#    _target_: torch.optim.SGD
+#    lr: 0.01
+#    momentum: 0.9
 
 testing:
   device: cuda
