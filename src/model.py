@@ -288,7 +288,7 @@ class MODNet1(nn.Module):
 
 class MODNet(nn.Module):
     def __init__(self, in_channels=3, hr_channels=64, backbone_arch="resnet18",
-                 backbone_pretrained=True, out_channels=3):
+                 backbone_pretrained=True, out_channels=3, rank=0):
         super(MODNet, self).__init__()
         self.in_channels = in_channels
         self.hr_channels = hr_channels

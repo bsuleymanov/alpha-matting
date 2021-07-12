@@ -1,7 +1,11 @@
 hydra:
   run:
     dir: .
+  hydra_logging: null
+  #output_subdir: null
+  job_logging: null
 
+# $ python foo.py hydra.run.dir=. hydra.output_subdir=null hydra/job_logging=disabled hydra/hydra_logging=disabled
 logging:
   project: alpha-matting
   entity: bsuleymanov
@@ -9,9 +13,9 @@ logging:
   model_save_path: "./models"
   input_image_save_path: "./input_save"
   visual_debug: false
-  verbose: 1
-  log_step: 1
-  sample_step: 1 # 1000
+  verbose: 0
+  log_step: 10
+  sample_step: 1000 # 1000
 
 inference:
   sample_path: "samples_10072021"
@@ -88,10 +92,10 @@ data:
       background_dir: ${..background_dir}
       #matte_dir: ${..matte_dir}
       image_size: ${..image_size}
-      batch_size: 2
+      batch_size: 32
       drop_last: false
       shuffle: true
-      num_workers: 1
+      num_workers: 12
       bg_per_fg: 1
       mode: ${..mode}
       use_one_img_per_dir: false
@@ -142,10 +146,10 @@ data:
       background_dir: ${..background_dir}
       #matte_dir: ${..matte_dir}
       image_size: ${..image_size}
-      batch_size: 2
+      batch_size: 32
       drop_last: false
       shuffle: false
-      num_workers: 1
+      num_workers: 12
       mode: ${..mode}
       bg_per_fg: 1
       use_one_img_per_dir: false
@@ -158,7 +162,7 @@ data:
     #####
 
 training:
-  total_step: 2
+  total_step: 150000
   device: cuda
   loss:
     _target_: src.losses.ModNetLoss

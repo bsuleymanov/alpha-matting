@@ -51,6 +51,8 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 import torch.distributed as dist
 
 import random
+from copy import deepcopy
+#from addict import Adict
 
 
 def setup(rank, world_size):
@@ -110,17 +112,22 @@ def run_training(rank, world_size, seed, cfg):
     #     start = cfg.pretrained_model + 1
     # else:
     #     start = 0
-    loss_fn = instantiate(cfg.training.loss, detailed=True)
+    loss_fn = instantiate(cfg.training.loss, detailed=True, device=rank)
     print(loss_fn)
     loss_list_fn = instantiate(
-        cfg.training.loss, average=False,)
+        cfg.training.loss, average=False, device=rank)
     loss_fn_valid = instantiate(
-        cfg.training.loss, detailed=True,)
+        cfg.training.loss, detailed=True, device=rank)
 
-    network = instantiate(cfg.network).to(cfg.training.device)
+    network = instantiate(cfg.network, rank=rank).to(rank)#.to(cfg.training.device)
+    network.freeze_backbone()
     if cfg.training.parallel:
-        network = DDP(network)
-    network.module.freeze_backbone()
+        network = DDP(network, device_ids=[rank], output_device=rank,
+                      find_unused_parameters=False)
+    if rank == 0:
+        wandb.watch(network)
+    #print(dir(network))
+
     # if cfg.training.parallel:
     #     network = nn.DataParallel(network)
 
@@ -141,14 +148,15 @@ def run_training(rank, world_size, seed, cfg):
             (images, mattes_true, foregrounds, backgrounds,
              foregrounds_names, background_names, matte_names) = next(data_iter)
         except:
+            dataloader.sampler.set_epoch(step // step_per_epoch)
             data_iter = iter(dataloader)
             (images, mattes_true, foregrounds, backgrounds,
              foregrounds_names, background_names, matte_names) = next(data_iter)
 
-        images = images.to(cfg.training.device).float()
-        images = normalize(images, torch.cuda.FloatTensor([0.5, 0.5, 0.5]), torch.cuda.FloatTensor([0.5, 0.5, 0.5]))
-        mattes_true = mattes_true.to(cfg.training.device).float()
-        trimaps_true, eroded, dilated = generate_trimap_kornia(mattes_true)#.float()
+        images = images.to(rank).float() #.to(cfg.training.device).float()
+        images = normalize(images, torch.FloatTensor([0.5, 0.5, 0.5]).to(rank), torch.FloatTensor([0.5, 0.5, 0.5]).to(rank))
+        mattes_true = mattes_true.to(rank).float()#.to(cfg.training.device).float()
+        trimaps_true, eroded, dilated = generate_trimap_kornia(mattes_true, rank)#.float()
         #print("Eroded min-max:", eroded.min(), eroded.max())
         #print("Dilated min-max:", dilated.min(), dilated.max())
         # trimaps_true = mattes_true.clone().cpu().numpy()
@@ -170,10 +178,10 @@ def run_training(rank, world_size, seed, cfg):
         (semantic_loss, detail_loss,
          matte_loss, loss) = loss_fn(semantic_pred, detail_pred, matte_pred,
                                      mattes_true, trimaps_true, images)
-        optimizer.zero_grad()
+
         loss.backward()
         optimizer.step()
-
+        optimizer.zero_grad()
         #if (step + 1) % accumulation_steps == 0:  # Wait for several backward steps
         #    optimizer.step()
         #    optimizer.zero_grad()
@@ -189,56 +197,45 @@ def run_training(rank, world_size, seed, cfg):
                            "semantic loss": semantic_loss.item(),
                            "detail loss": detail_loss.item(),
                            "matte loss": matte_loss.item()})
-
         del semantic_pred, detail_pred
-
         torch.cuda.empty_cache()
-
         # new validation step
-
-        if (step + 1) % cfg.logging.sample_step == 0 and rank == 0:
-
-            train_images_to_save = []
-            for k in range(len(images)):
-                train_images_to_save.append(wandb.Image(tensor_to_image(images[k]), caption=matte_names[k]))
-            wandb.log({"train pic examples": train_images_to_save})
-            del images, train_images_to_save
-
-            train_images_to_save = []
-            for k in range(len(matte_pred)):
-                train_images_to_save.append(wandb.Image(tensor_to_image(matte_pred[k]), caption=matte_names[k]))
-            wandb.log({"train examples": train_images_to_save})
-            del matte_pred, train_images_to_save
-
-            trimaps_to_save = []
-            for k in range(len(trimaps_true)):
-                trimaps_to_save.append(wandb.Image(tensor_to_image(trimaps_true[k]), caption=f"Trimap {matte_names[k]}"))
-            wandb.log({"trimaps": trimaps_to_save})
-            del trimaps_true, trimaps_to_save
-
-            eroded_to_save = []
-            for k in range(len(eroded)):
-                eroded_to_save.append(
-                    wandb.Image(tensor_to_image(eroded[k]), caption=f"Eroded {matte_names[k]}"))
-            wandb.log({"eroded": eroded_to_save})
-            del eroded, eroded_to_save
-
-            dilated_to_save = []
-            for k in range(len(dilated)):
-                dilated_to_save.append(
-                    wandb.Image(tensor_to_image(dilated[k]), caption=f"Dilated {matte_names[k]}"))
-            wandb.log({"dilated": dilated_to_save})
-            del dilated, dilated_to_save
-
-            train_true_images_to_save = []
-            for k in range(len(mattes_true)):
-                train_true_images_to_save.append(wandb.Image(tensor_to_image(mattes_true[k]), caption=matte_names[k]))
-            wandb.log({"train true examples": train_true_images_to_save})
-            del mattes_true, train_true_images_to_save
-
-            gc.collect()
-            torch.cuda.empty_cache()
-
+        if (step + 1) % cfg.logging.sample_step == 0:
+            if rank == 0:
+                train_images_to_save = []
+                for k in range(len(images)):
+                    train_images_to_save.append(wandb.Image(tensor_to_image(images[k]), caption=matte_names[k]))
+                wandb.log({"train pic examples": train_images_to_save})
+                del images, train_images_to_save
+                train_images_to_save = []
+                for k in range(len(matte_pred)):
+                    train_images_to_save.append(wandb.Image(tensor_to_image(matte_pred[k]), caption=matte_names[k]))
+                wandb.log({"train examples": train_images_to_save})
+                del matte_pred, train_images_to_save
+                trimaps_to_save = []
+                for k in range(len(trimaps_true)):
+                    trimaps_to_save.append(wandb.Image(tensor_to_image(trimaps_true[k]), caption=f"Trimap {matte_names[k]}"))
+                wandb.log({"trimaps": trimaps_to_save})
+                del trimaps_true, trimaps_to_save
+                eroded_to_save = []
+                for k in range(len(eroded)):
+                    eroded_to_save.append(
+                        wandb.Image(tensor_to_image(eroded[k]), caption=f"Eroded {matte_names[k]}"))
+                wandb.log({"eroded": eroded_to_save})
+                del eroded, eroded_to_save
+                dilated_to_save = []
+                for k in range(len(dilated)):
+                    dilated_to_save.append(
+                        wandb.Image(tensor_to_image(dilated[k]), caption=f"Dilated {matte_names[k]}"))
+                wandb.log({"dilated": dilated_to_save})
+                del dilated, dilated_to_save
+                train_true_images_to_save = []
+                for k in range(len(mattes_true)):
+                    train_true_images_to_save.append(wandb.Image(tensor_to_image(mattes_true[k]), caption=matte_names[k]))
+                wandb.log({"train true examples": train_true_images_to_save})
+                del mattes_true, train_true_images_to_save
+                gc.collect()
+                torch.cuda.empty_cache()
             network.eval()
             val_loss_list = []
             val_loss = 0
@@ -247,18 +244,16 @@ def run_training(rank, world_size, seed, cfg):
             matte_val_loss = 0
             val_dataset_size = len(validation_dataloader.dataset)
             images_to_save = []
-            with torch.no_grad():
-                for images, mattes_true, foregrounds, backgrounds, \
-                    foregrounds_names, background_names, matte_names in validation_dataloader:
+            for images, mattes_true, foregrounds, backgrounds, \
+                foregrounds_names, background_names, matte_names in validation_dataloader:
+                with torch.no_grad():
 
-                    images = images.to(cfg.testing.device).float()
-                    images = normalize(images, torch.cuda.FloatTensor([0.5, 0.5, 0.5]),
-                                       torch.cuda.FloatTensor([0.5, 0.5, 0.5]))
-                    mattes_true = mattes_true.to(cfg.testing.device).float()
-                    trimaps_true, eroded, dilated = generate_trimap_kornia(mattes_true)#.float()
-
-                    semantic_pred, detail_pred, matte_pred = network(images, "train")
-
+                    images = images.to(rank)#.to(cfg.testing.device).float()
+                    images = normalize(images, torch.FloatTensor([0.5, 0.5, 0.5]).to(rank),
+                                       torch.FloatTensor([0.5, 0.5, 0.5]).to(rank)).float()
+                    mattes_true = mattes_true.to(rank).float()#.to(cfg.testing.device).float()
+                    trimaps_true, eroded, dilated = generate_trimap_kornia(mattes_true, rank)#.float()
+                    semantic_pred, detail_pred, matte_pred = network(images)
                     current_batch_size = len(images)
                     #semantic_loss = semantic_loss * current_batch_size
                     #detail_loss = detail_loss * current_batch_size
@@ -273,58 +268,45 @@ def run_training(rank, world_size, seed, cfg):
                     semantic_val_loss += semantic_loss.item() * current_batch_size
                     detail_val_loss += detail_loss.item() * current_batch_size
                     matte_val_loss += matte_loss.item() * current_batch_size
-
                     #images_to_save = []
-                    for k in range(len(matte_pred)):
-                        images_to_save.append(wandb.Image(tensor_to_image(matte_pred[k]), caption=matte_names[k]))
-
+                    if rank == 0:
+                        for k in range(len(matte_pred)):
+                            images_to_save.append(wandb.Image(tensor_to_image(matte_pred[k]), caption=matte_names[k]))
                     del semantic_pred, detail_pred, matte_pred,
                     torch.cuda.empty_cache()
                 #print(val_loss_list)
-                val_loss_arr.extend([[x, y] for (x, y) in zip([step] * len(val_loss_list), val_loss_list)])
-                df = pd.DataFrame(data=val_loss_arr, columns=['step', 'error'])
-                #print(df)
+                if rank == 0:
+                    val_loss_arr.extend([[x, y] for (x, y) in zip([step] * len(val_loss_list), val_loss_list)])
+                    df = pd.DataFrame(data=val_loss_arr, columns=['step', 'error'])
+                    #print(df)
 
-                fig = px.scatter(x=df.step.values, y=df.error.values)
-                #print(np.array(val_loss_arr), np.array(val_loss_arr).shape)
-                #table = wandb.Table(data=val_loss_arr, columns=['step', 'error'])
-                #table = wandb.Table(dataframe=df)
-                #wandb.log({"val loss": wandb.plot.scatter(table, "step", "error")})
-                wandb.log({'val loss': fig})
-                #wandb.log({'val loss scalar': val_loss / val_dataset_size})
-                wandb.log({"examples": images_to_save})
-                #print(len(images_to_save))
-                wandb.log({"val loss total": val_loss / val_dataset_size,
-                           "val semantic loss": semantic_val_loss / val_dataset_size,
-                           "val detail loss": detail_val_loss / val_dataset_size,
-                           "val matte loss": matte_val_loss / val_dataset_size})
-
-        # if (step + 1) % cfg.logging.sample_step == 0:
-        #     network.eval()
-        #     with torch.no_grad():
-        #         _, _, mattes_samples = network(images, "test")
-        #     #print(mattes_samples.sum())
-        #     #save_image(mattes_samples[0:1].data,
-        #     #           str(sample_path / f"{step+1}_predict.png"))
-        #     #save_image(mattes_true[0:1].data,
-        #     #           str(sample_path / f"{step + 1}_true.png"))
-        #     im_to_save = tensor_to_image(mattes_samples[0])
-        #     print(np.array(im_to_save).shape)
-        #     wandb.log({"examples": [wandb.Image(im_to_save, caption="Label")]})
-        #     del mattes_samples
-        #     torch.cuda.empty_cache()
+                    fig = px.scatter(x=df.step.values, y=df.error.values)
+                    #print(np.array(val_loss_arr), np.array(val_loss_arr).shape)
+                    #table = wandb.Table(data=val_loss_arr, columns=['step', 'error'])
+                    #table = wandb.Table(dataframe=df)
+                    #wandb.log({"val loss": wandb.plot.scatter(table, "step", "error")})
+                    wandb.log({'val loss': fig})
+                    #wandb.log({'val loss scalar': val_loss / val_dataset_size})
+                    wandb.log({"examples": images_to_save})
+                    #print(len(images_to_save))
+                    wandb.log({"val loss total": val_loss / val_dataset_size,
+                               "val semantic loss": semantic_val_loss / val_dataset_size,
+                               "val detail loss": detail_val_loss / val_dataset_size,
+                               "val matte loss": matte_val_loss / val_dataset_size})
 
         if (step + 1) % model_save_step == 0 and rank == 0:
             torch.save(network.state_dict(),
                        str(model_save_path / f"{step + 1}_network.pth"))
-
-        if (step + 1) % step_per_epoch:
-            lr_scheduler.step()
-
+        #if (step + 1) % step_per_epoch:
+        #    lr_scheduler.step()
     cleanup()
+    wandb.finish()
+    #return
 
 @hydra.main(config_path="configs/maadaa/modnet", config_name="full_experiment")
 def train_from_folder_distributed(cfg):
+    #cfg = train_from_folder_distributed_subfunc()
+    #print(cfg)
     world_size = torch.cuda.device_count()
     global_seed = 228
     mp.spawn(run_training,
@@ -332,6 +314,23 @@ def train_from_folder_distributed(cfg):
              nprocs=torch.cuda.device_count(),
              join=True)
 
+
+#@hydra.main(config_path="configs/maadaa/modnet", config_name="full_experiment")
+def train_from_folder_distributed_subfunc():
+    #print(OmegaConf.to_yaml(cfg))
+    #cfg_copy = deepcopy(cfg)
+    initialize(config_path="configs/maadaa/modnet", job_name="test_app")
+    cfg = compose(config_name="full_experiment")
+    print(OmegaConf.to_yaml(cfg))
+    return cfg
+    #train_from_folder_distributed_subfunc(cfg)
+    # world_size = torch.cuda.device_count()
+    # global_seed = 228
+    # mp.spawn(run_training,
+    #          args=(world_size, global_seed, cfg),
+    #          nprocs=torch.cuda.device_count(),
+    #          join=True)
+    # print("kek spawn 353")
 
 @hydra.main(config_path="configs/maadaa/modnet", config_name="full_experiment")
 def train_from_folder(cfg: DictConfig):

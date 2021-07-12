@@ -761,7 +761,7 @@ class AISegmentDatasetWOTrimapV2:
                  bg_per_fg=10, mode="train", use_one_img_per_dir=False, verbose=0):
         self.mode = mode
         if mode == "test":
-            self.n_samples = 2
+            self.n_samples = 1024
         self.bg_per_fg = bg_per_fg
 
         #self.foreground_list = list(map(str, Path(foreground_dir).rglob("*_foreground.jpg")))

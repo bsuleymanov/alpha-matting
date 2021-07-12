@@ -7,6 +7,7 @@ from PIL import Image
 import random
 import cv2
 from kornia.morphology import dilation, erosion
+from torch.nn import functional as F
 
 
 def generate_trimap_from_alpha(masks):
@@ -35,11 +36,40 @@ def generate_trimap(matte):
 
     return trimap / 255., eroded, dilated
 
+def erosion1(tensor, kernel, max_val=1e4):
+    se_h, se_w = kernel.shape
+    origin = [se_h // 2, se_w // 2]
+    pad_e = [origin[1], se_w - origin[1] - 1, origin[0], se_h - origin[0] - 1]
+    border_value = max_val
+    border_type = 'constant'
+    output = F.pad(tensor, pad_e, mode=border_type, value=border_value)
+    neighborhood = torch.zeros_like(kernel)
+    neighborhood[kernel == 0] = -max_val
+    output = output.unfold(2, se_h, 1).unfold(3, se_w, 1)
+    output, _ = torch.min(output - neighborhood, 4)
+    output, _ = torch.min(output, 4)
 
-def generate_trimap_kornia(matte):
-    #print(matte.max())
+    return output
+
+def dilation1(tensor, kernel, max_val=1e4):
+    se_h, se_w = kernel.shape
+    origin = [se_h // 2, se_w // 2]
+    pad_e = [origin[1], se_w - origin[1] - 1, origin[0], se_h - origin[0] - 1]
+    border_value = -max_val
+    border_type = 'constant'
+    output = F.pad(tensor, pad_e, mode=border_type, value=border_value)
+    neighborhood = torch.zeros_like(kernel)
+    neighborhood[kernel == 0] = -max_val
+    output = output.unfold(2, se_h, 1).unfold(3, se_w, 1)
+    output, _ = torch.max(output + neighborhood.flip((0, 1)), 4)
+    output, _ = torch.max(output, 4)
+
+    return output
+
+
+def generate_trimap_kornia(matte, rank=0):
     kernel_size = random.choice(range(3, 29, 2))
-    kernel = torch.ones(kernel_size, kernel_size).to('cuda')
+    kernel = torch.ones(kernel_size, kernel_size).to(rank)#.to('cuda')
     dilated = dilation(matte, kernel)
     dilated = torch.where(dilated <= 0., dilated, torch.ones_like(dilated))
     eroded = erosion(matte, kernel)
