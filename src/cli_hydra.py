@@ -100,9 +100,11 @@ def run_training(rank, world_size, seed, cfg):
         mkdir_if_empty_or_not_exist(input_image_save_path)
 
     # distributed dataloader
-    dataloader = instantiate(cfg.data.train.dataloader, world_size=world_size, rank=rank).loader
+    dataloader_class = instantiate(cfg.data.train.dataloader, world_size=world_size, rank=rank)
+    dataloader = dataloader_class.loader
     validation_dataloader = instantiate(cfg.data.validation.dataloader, world_size=world_size, rank=rank).loader
     data_iter = iter(dataloader)
+    #data_iter = dataloader
     step_per_epoch = len(dataloader)
     total_epoch = cfg.training.total_step / step_per_epoch
     print(total_epoch)
@@ -124,6 +126,7 @@ def run_training(rank, world_size, seed, cfg):
     if cfg.training.parallel:
         network = DDP(network, device_ids=[rank], output_device=rank,
                       find_unused_parameters=False)
+    network = nn.SyncBatchNorm.convert_sync_batchnorm(network)
     if rank == 0:
         wandb.watch(network)
     #print(dir(network))
@@ -144,16 +147,22 @@ def run_training(rank, world_size, seed, cfg):
     start_time = time.time()
     start = 0
     for step in range(start, cfg.training.total_step):
+        #print(dataloader.sampler)
+        #print(dataloader_class.data_sampler)
         try:
             (images, mattes_true, foregrounds, backgrounds,
              foregrounds_names, background_names, matte_names) = next(data_iter)
         except:
+            # if rank == 0:
+            #     print("------")
             dataloader.sampler.set_epoch(step // step_per_epoch)
             data_iter = iter(dataloader)
             (images, mattes_true, foregrounds, backgrounds,
              foregrounds_names, background_names, matte_names) = next(data_iter)
+            #print(f"rank {rank}", foregrounds_names)
 
         images = images.to(rank).float() #.to(cfg.training.device).float()
+        #print(f"Image size: {images.size()}")
         images = normalize(images, torch.tensor([0.5, 0.5, 0.5], device=rank),
                                    torch.tensor([0.5, 0.5, 0.5], device=rank))
         mattes_true = mattes_true.to(rank).float()#.to(cfg.training.device).float()
@@ -272,30 +281,30 @@ def run_training(rank, world_size, seed, cfg):
                     detail_val_loss += detail_loss.item() * current_batch_size
                     matte_val_loss += matte_loss.item() * current_batch_size
                     #images_to_save = []
-                    if rank == 0:
+                    if rank == 0 and len(images_to_save) < (108 - len(matte_pred)):
                         for k in range(len(matte_pred)):
                             images_to_save.append(wandb.Image(tensor_to_image(matte_pred[k]), caption=matte_names[k]))
                     del semantic_pred, detail_pred, matte_pred,
                     torch.cuda.empty_cache()
                 #print(val_loss_list)
-                if rank == 0:
-                    val_loss_arr.extend([[x, y] for (x, y) in zip([step] * len(val_loss_list), val_loss_list)])
-                    df = pd.DataFrame(data=val_loss_arr, columns=['step', 'error'])
-                    #print(df)
+            if rank == 0:
+                val_loss_arr.extend([[x, y] for (x, y) in zip([step] * len(val_loss_list), val_loss_list)])
+                df = pd.DataFrame(data=val_loss_arr, columns=['step', 'error'])
+                #print(df)
 
-                    fig = px.scatter(x=df.step.values, y=df.error.values)
-                    #print(np.array(val_loss_arr), np.array(val_loss_arr).shape)
-                    #table = wandb.Table(data=val_loss_arr, columns=['step', 'error'])
-                    #table = wandb.Table(dataframe=df)
-                    #wandb.log({"val loss": wandb.plot.scatter(table, "step", "error")})
-                    wandb.log({'val loss': fig})
-                    #wandb.log({'val loss scalar': val_loss / val_dataset_size})
-                    wandb.log({"examples": images_to_save})
-                    #print(len(images_to_save))
-                    wandb.log({"val loss total": val_loss / val_dataset_size,
-                               "val semantic loss": semantic_val_loss / val_dataset_size,
-                               "val detail loss": detail_val_loss / val_dataset_size,
-                               "val matte loss": matte_val_loss / val_dataset_size})
+                fig = px.scatter(x=df.step.values, y=df.error.values)
+                #print(np.array(val_loss_arr), np.array(val_loss_arr).shape)
+                #table = wandb.Table(data=val_loss_arr, columns=['step', 'error'])
+                #table = wandb.Table(dataframe=df)
+                #wandb.log({"val loss": wandb.plot.scatter(table, "step", "error")})
+                wandb.log({'val loss': fig})
+                #wandb.log({'val loss scalar': val_loss / val_dataset_size})
+                wandb.log({"examples": images_to_save})
+                #print(len(images_to_save))
+                wandb.log({"val loss total": val_loss / val_dataset_size,
+                           "val semantic loss": semantic_val_loss / val_dataset_size,
+                           "val detail loss": detail_val_loss / val_dataset_size,
+                           "val matte loss": matte_val_loss / val_dataset_size})
 
         if (step + 1) % model_save_step == 0 and rank == 0:
             torch.save(network.state_dict(),
@@ -306,12 +315,15 @@ def run_training(rank, world_size, seed, cfg):
     wandb.finish()
     #return
 
-@hydra.main(config_path="configs/maadaa/modnet", config_name="full_experiment")
-def train_from_folder_distributed(cfg):
+#@hydra.main(config_path="configs/maadaa/modnet", config_name="full_experiment")
+def train_from_folder_distributed():
     #cfg = train_from_folder_distributed_subfunc()
     #print(cfg)
     world_size = torch.cuda.device_count()
+    print(f"world_size: {world_size}")
     global_seed = 228
+    initialize(config_path="configs/maadaa/modnet", job_name="test_app")
+    cfg = compose(config_name="full_experiment")
     mp.spawn(run_training,
              args=(world_size, global_seed, cfg),
              nprocs=torch.cuda.device_count(),

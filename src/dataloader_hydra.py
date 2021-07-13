@@ -762,6 +762,8 @@ class AISegmentDatasetWOTrimapV2:
         self.mode = mode
         if mode == "test":
             self.n_samples = 1024
+        #if mode == "train":
+        #    self.n_samples = 16
         self.bg_per_fg = bg_per_fg
 
         #self.foreground_list = list(map(str, Path(foreground_dir).rglob("*_foreground.jpg")))
@@ -928,6 +930,38 @@ class AISegmentLoader:
             shuffle=shuffle, num_workers=num_workers,
             drop_last=drop_last)
 
+import torch.utils.data
+
+
+class _RepeatSampler(object):
+    """ Sampler that repeats forever.
+
+    Args:
+        sampler (Sampler)
+    """
+
+    def __init__(self, sampler):
+        self.sampler = sampler
+
+    def __iter__(self):
+        while True:
+            yield from iter(self.sampler)
+
+
+class FastDataLoader(torch.utils.data.dataloader.DataLoader):
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        object.__setattr__(self, 'batch_sampler', _RepeatSampler(self.batch_sampler))
+        self.iterator = super().__iter__()
+
+    def __len__(self):
+        return len(self.batch_sampler.sampler)
+
+    def __iter__(self):
+        for i in range(len(self)):
+            yield next(self.iterator)
+
 class AISegmentDistributedLoader:
     def __init__(self, #foreground_dir, matte_dir,
                  background_dir, foreground_csv, matte_csv,
@@ -951,7 +985,7 @@ class AISegmentDistributedLoader:
             foreground_transform, background_transform,
             matte_transform, shared_post_transform, bg_per_fg,
             mode, use_one_img_per_dir)
-        data_sampler = data_dist.DistributedSampler(
+        self.data_sampler = data_dist.DistributedSampler(
             dataset,
             num_replicas=world_size,
             rank=rank,
@@ -959,11 +993,12 @@ class AISegmentDistributedLoader:
             drop_last=drop_last
         )
         # REMINDER: NUM_WORKERS WAS SET TO ZERO.
-        self.loader = torch.utils.data.DataLoader(
+        self.loader = FastDataLoader(
             dataset=dataset, batch_size=batch_size,
             num_workers=num_workers,
+            persistent_workers=True,
             pin_memory=True,
-            sampler=data_sampler)
+            sampler=self.data_sampler)
 
 class AISegmentInferenceDatasetWOTrimapV2:
     def __init__(self, image_dir, image_transform=None, verbose=0):

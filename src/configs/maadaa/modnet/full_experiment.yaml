@@ -13,7 +13,7 @@ logging:
   model_save_path: "./models"
   input_image_save_path: "./input_save"
   visual_debug: false
-  verbose: 0
+  verbose: 1
   log_step: 10
   sample_step: 1000 # 1000
 
@@ -27,7 +27,7 @@ inference:
 data:
   inference:
     transform:
-    image_size: 256
+    image_size: 512
     dataloader:
       _target_: src.dataloader_hydra.AISegmentInferenceLoader
       image_dir: "../data/to_inference_10072021"
@@ -57,7 +57,7 @@ data:
     foreground_csv: "../data/AISegment/train_images.csv"
     matte_csv: "../data/AISegment/train_mattes.csv"
     background_dir: "../data/backgrounds/"
-    image_size: 256
+    image_size: 512
     mode: "train"
 
     #####
@@ -92,10 +92,10 @@ data:
       background_dir: ${..background_dir}
       #matte_dir: ${..matte_dir}
       image_size: ${..image_size}
-      batch_size: 32
+      batch_size: 8
       drop_last: false
       shuffle: true
-      num_workers: 12
+      num_workers: 8
       bg_per_fg: 1
       mode: ${..mode}
       use_one_img_per_dir: false
@@ -111,7 +111,7 @@ data:
     foreground_csv: "../data/AISegment/val_images.csv"
     matte_csv: "../data/AISegment/val_mattes.csv"
     background_dir: "../data/backgrounds/"
-    image_size: 256
+    image_size: 512
     mode: "test"
 
     #####
@@ -146,10 +146,10 @@ data:
       background_dir: ${..background_dir}
       #matte_dir: ${..matte_dir}
       image_size: ${..image_size}
-      batch_size: 32
+      batch_size: 8
       drop_last: false
       shuffle: false
-      num_workers: 12
+      num_workers: 8
       mode: ${..mode}
       bg_per_fg: 1
       use_one_img_per_dir: false

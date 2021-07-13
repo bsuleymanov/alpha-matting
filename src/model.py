@@ -43,7 +43,7 @@ class GaussianBlurLayer(nn.Module):
             param.data.copy_(torch.from_numpy(kernel))
 
 
-class IBNorm1(nn.Module):
+class IBNorm(nn.Module):
     def __init__(self, in_channels):
         super(IBNorm, self).__init__()
         self.bnorm_channels = int(in_channels / 2)
@@ -57,7 +57,7 @@ class IBNorm1(nn.Module):
         image_in = self.inorm(image[:, self.bnorm_channels:, ...].contiguous())
         return torch.cat((image_bn, image_in), 1)
 
-class IBNorm(nn.Module):
+class IBNorm1(nn.Module):
     def __init__(self, in_channels):
         super(IBNorm, self).__init__()
         self.inorm = nn.InstanceNorm2d(in_channels, affine=True)
