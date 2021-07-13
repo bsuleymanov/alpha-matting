@@ -961,7 +961,7 @@ class AISegmentDistributedLoader:
         # REMINDER: NUM_WORKERS WAS SET TO ZERO.
         self.loader = torch.utils.data.DataLoader(
             dataset=dataset, batch_size=batch_size,
-            num_workers=0,
+            num_workers=num_workers,
             pin_memory=True,
             sampler=data_sampler)
 
