@@ -161,6 +161,14 @@ def run_training(rank, world_size, seed, cfg):
              foregrounds_names, background_names, matte_names) = next(data_iter)
             #print(f"rank {rank}", foregrounds_names)
 
+        # if rank == 0:
+        #     foregrounds_names_mapped = list(map(lambda x: x[:-3], foregrounds_names))
+        #     matte_names_mapped = list(map(lambda x: x[:-3], matte_names))
+        #     print("foregrounds == mattes:", foregrounds_names_mapped == matte_names_mapped)
+        #     if foregrounds_names_mapped != matte_names_mapped:
+        #         print(foregrounds_names_mapped)
+        #         print(matte_names_mapped)
+
         images = images.to(rank).float() #.to(cfg.training.device).float()
         #print(f"Image size: {images.size()}")
         images = normalize(images, torch.tensor([0.5, 0.5, 0.5], device=rank),

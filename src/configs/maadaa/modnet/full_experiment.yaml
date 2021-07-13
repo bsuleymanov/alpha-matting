@@ -14,7 +14,7 @@ logging:
   input_image_save_path: "./input_save"
   visual_debug: false
   verbose: 1
-  log_step: 10
+  log_step: 100
   sample_step: 1000 # 1000
 
 inference:
