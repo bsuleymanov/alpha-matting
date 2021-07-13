@@ -154,7 +154,8 @@ def run_training(rank, world_size, seed, cfg):
              foregrounds_names, background_names, matte_names) = next(data_iter)
 
         images = images.to(rank).float() #.to(cfg.training.device).float()
-        images = normalize(images, torch.FloatTensor([0.5, 0.5, 0.5]).to(rank), torch.FloatTensor([0.5, 0.5, 0.5]).to(rank))
+        images = normalize(images, torch.tensor([0.5, 0.5, 0.5], device=rank),
+                                   torch.tensor([0.5, 0.5, 0.5], device=rank))
         mattes_true = mattes_true.to(rank).float()#.to(cfg.training.device).float()
         trimaps_true, eroded, dilated = generate_trimap_kornia(mattes_true, rank)#.float()
         #print("Eroded min-max:", eroded.min(), eroded.max())
@@ -197,10 +198,12 @@ def run_training(rank, world_size, seed, cfg):
                            "semantic loss": semantic_loss.item(),
                            "detail loss": detail_loss.item(),
                            "matte loss": matte_loss.item()})
-        del semantic_pred, detail_pred
-        torch.cuda.empty_cache()
+        ### del semantic_pred, detail_pred
+        ### torch.cuda.empty_cache()
         # new validation step
         if (step + 1) % cfg.logging.sample_step == 0:
+            del semantic_pred, detail_pred
+            torch.cuda.empty_cache()
             if rank == 0:
                 train_images_to_save = []
                 for k in range(len(images)):
@@ -249,8 +252,8 @@ def run_training(rank, world_size, seed, cfg):
                 with torch.no_grad():
 
                     images = images.to(rank)#.to(cfg.testing.device).float()
-                    images = normalize(images, torch.FloatTensor([0.5, 0.5, 0.5]).to(rank),
-                                       torch.FloatTensor([0.5, 0.5, 0.5]).to(rank)).float()
+                    images = normalize(images, torch.tensor([0.5, 0.5, 0.5], device=rank),
+                                       torch.tensor([0.5, 0.5, 0.5], device=rank)).float()
                     mattes_true = mattes_true.to(rank).float()#.to(cfg.testing.device).float()
                     trimaps_true, eroded, dilated = generate_trimap_kornia(mattes_true, rank)#.float()
                     semantic_pred, detail_pred, matte_pred = network(images)
