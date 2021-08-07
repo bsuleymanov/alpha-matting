@@ -1,0 +1,19 @@
+shared_pre:
+  _target_: albumentations.Compose
+  transforms:
+    - _target_: albumentations.SmallestMaxSize
+      max_size: ${.....image_size}
+    - _target_: albumentations.RandomCrop
+      height: ${.....image_size}
+      width: ${.....image_size}
+composition: null
+#        _target_: albumentations.Normalize
+#        mean: [ 0.5, 0.5, 0.5 ]
+#        std: [ 0.5, 0.5, 0.5 ]
+foreground:
+background:
+matte: null
+shared_post:
+  _target_: albumentations.Compose
+  transforms:
+    - _target_: albumentations.pytorch.ToTensorV2

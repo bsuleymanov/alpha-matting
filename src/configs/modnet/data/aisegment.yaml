@@ -1,0 +1,5 @@
+defaults:
+  - dataloaders@inference.dataloader: aisegment_inference
+  - dataloaders@train.dataloader: aisegment_inference
+
+

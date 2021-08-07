@@ -1,0 +1,5 @@
+sample_path: "samples_10072021"
+model_load_path: "models_10072021"
+saved_model_name: "98000_network.pth"
+device: cuda
+verbose: 0

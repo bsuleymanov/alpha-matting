@@ -1,0 +1,18 @@
+defaults:
+  - logging@logging: wandb
+  - inference: aisegment
+  - training@train: aisegment
+  - models@network: modnet_resnet
+
+
+hydra:
+  run:
+    dir: .
+  hydra_logging: null
+  #output_subdir: null
+  job_logging: null
+
+
+testing:
+  device: cuda
+
