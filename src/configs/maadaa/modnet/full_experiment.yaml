@@ -29,7 +29,7 @@ data:
     transform:
     image_size: 512
     dataloader:
-      _target_: src.dataloader_hydra.AISegmentInferenceLoader
+      _target_: src.dataloader.AISegmentInferenceLoader
       image_dir: "../data/to_inference_10072021"
       batch_size: 4
       drop_last: false
@@ -85,7 +85,7 @@ data:
 
     #####
     dataloader:
-      _target_: src.dataloader_hydra.AISegmentDistributedLoader
+      _target_: src.dataloader.AISegmentDistributedLoader
       foreground_csv: ${..foreground_csv}
       matte_csv: ${..matte_csv}
       #foreground_dir: ${..foreground_dir}
@@ -139,7 +139,7 @@ data:
 
     #####
     dataloader:
-      _target_: src.dataloader_hydra.AISegmentDistributedLoader
+      _target_: src.dataloader.AISegmentDistributedLoader
       foreground_csv: ${..foreground_csv}
       matte_csv: ${..matte_csv}
       #foreground_dir: ${..foreground_dir}
