@@ -1,6 +1,0 @@
-name: "maadaa"
-image_path: ??? #"../data/dataset_split/train/"
-foreground_path: ??? #"../data/foregrounds_split/train/"
-background_path: ??? #"../data/backgrounds/"
-image_size: 256
-mode: "train"

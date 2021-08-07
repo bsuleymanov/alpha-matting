@@ -1,3 +1,0 @@
-_target_: src.network.GaussianBlurLayer
-n_channels: 3
-kernel_size: 3

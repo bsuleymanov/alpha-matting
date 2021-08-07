@@ -213,7 +213,7 @@ def train_from_folder_distributed():
     world_size = torch.cuda.device_count()
     print(f"world_size: {world_size}")
     global_seed = 228
-    initialize(config_path="configs/maadaa/modnet", job_name="test_app")
+    initialize(config_path="configs/modnet", job_name="test_app")
     cfg = compose(config_name="full_experiment")
     mp.spawn(run_training,
              args=(world_size, global_seed, cfg),
@@ -221,7 +221,7 @@ def train_from_folder_distributed():
              join=True)
 
 
-@hydra.main(config_path="configs/maadaa/modnet", config_name="full_experiment")
+@hydra.main(config_path="configs/modnet", config_name="full_experiment")
 def inference_from_folder(cfg: DictConfig):
     inference_path = Path(cfg.inference.sample_path)
     model_load_path = Path(cfg.inference.model_load_path)

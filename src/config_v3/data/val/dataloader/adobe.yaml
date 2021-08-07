@@ -1,8 +1,0 @@
-
-
-defaults:
-  - data.train.dataloader: coco
-  - data.test.dataloader: adobe
-  - data.train.transforms: simple_aug
-  - data.val.transforms: hard_aug
-
