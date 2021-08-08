@@ -1,0 +1,14 @@
+train:
+  image_path: "../data/dataset_split/train/"
+  foreground_path: "../data/foregrounds_split/train/"
+  background_path: "../data/backgrounds/"
+  #background_dir: "../data/backgrounds/"
+  image_size: 256
+  mode: "train"
+
+validation:
+  image_path: "../data/dataset_split/val/"
+  foreground_path: "../data/foregrounds_split/val/"
+  background_path: "../data/backgrounds/"
+  image_size: 256
+  mode: "test"

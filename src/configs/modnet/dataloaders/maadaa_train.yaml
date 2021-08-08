@@ -1,0 +1,17 @@
+# @package _group_
+_target_: src.dataloader.MaadaaMattingLoaderV2
+image_path: ${..image_path} # MISSING
+foreground_path: ${..foreground_path} # MISSING
+background_path: ${..background_path} # MISSING
+image_size: ${..image_size}
+batch_size: 1
+drop_last: false
+shuffle: false
+num_workers: 1
+mode: ${..mode}
+shared_pre_transform: ${..transforms.shared_pre}
+composition_transform: ${..transforms.composition}
+foreground_transform: ${..transforms.foreground}
+background_transform: ${..transforms.background}
+matte_transform: ${..transforms.matte}
+shared_post_transform: ${..transforms.shared_post}

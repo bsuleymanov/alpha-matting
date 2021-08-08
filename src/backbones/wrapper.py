@@ -1,11 +1,12 @@
 import os
-from functools import reduce
+from functools import reduce, partial
 
 import torch
 import torch.nn as nn
 
 from .mobilenetv2 import MobileNetV2
 from .resnet import ResNet, BasicBlock
+from .pvt import PyramidVisionTransformer
 
 from hydra.utils import to_absolute_path
 
@@ -27,6 +28,51 @@ class BaseBackbone(nn.Module):
         raise NotImplementedError
 
 
+class PVTBackbone(BaseBackbone):
+    """ResNet18 Backbone"""
+
+    def __init__(self, in_channels):
+        super(PVTBackbone, self).__init__(in_channels)
+        self.model = PyramidVisionTransformer(
+            patch_size=4, embed_dims=[16, 32, 64, 128, 128], n_heads=[1, 2, 4, 8, 8], mlp_ratios=[8, 8, 4, 4, 4],
+            qkv_bias=True, norm_layer=partial(nn.LayerNorm, eps=1e-6), depths=[2, 2, 2, 2, 2],
+            sr_ratios=[8, 4, 2, 1, 1], dropout_rate=0.0, drop_path_rate=0.1)
+        self.enc_channels = []
+        features = self.model(torch.ones([1, 3, 256, 256]))
+        for x in features[1:]:
+            self.enc_channels.append(x.size(1))
+        print(self.enc_channels)
+
+    def forward_features(self, x):
+        outs = []
+
+        B = x.shape[0]
+
+        for i in range(self.num_stages):
+            patch_embed = getattr(self, f"patch_embed{i + 1}")
+            pos_embed = getattr(self, f"pos_embed{i + 1}")
+            pos_drop = getattr(self, f"pos_drop{i + 1}")
+            block = getattr(self, f"block{i + 1}")
+            x, (H, W) = patch_embed(x)
+            if i == self.num_stages - 1:
+                pos_embed = self._get_pos_embed(pos_embed[:, 1:], patch_embed, H, W)
+            else:
+                pos_embed = self._get_pos_embed(pos_embed, patch_embed, H, W)
+
+            x = pos_drop(x + pos_embed)
+            for blk in block:
+                x = blk(x, H, W)
+            x = x.reshape(B, H, W, -1).permute(0, 3, 1, 2).contiguous()
+            outs.append(x)
+
+        return outs
+
+    def forward(self, x):
+        return self.model(x)
+
+
+
+
 class ResNet18Backbone(BaseBackbone):
     """ResNet18 Backbone"""
 
@@ -39,31 +85,33 @@ class ResNet18Backbone(BaseBackbone):
             self.enc_channels.append(x.size(1))
         print(self.enc_channels)
 
+
     def forward(self, x):
-        # Stage 1
-        x = self.model.conv1(x)
-        x = self.model.bn1(x)
-        x = self.model.relu(x)
-        enc2x = x
-
-        # Stage 2
-        x = self.model.maxpool(x)
-        x = self.model.layer1(x)
-        enc4x = x
-
-        # Stage 3
-        x = self.model.layer2(x)
-        enc8x = x
-
-        # Stage 4
-        x = self.model.layer3(x)
-        enc16x = x
-
-        # Stage 5
-        x = self.model.layer4(x)
-        enc32x = x
-
-        return [enc2x, enc4x, enc8x, enc16x, enc32x]
+        return self.model(x)
+        # # Stage 1
+        # x = self.model.conv1(x)
+        # x = self.model.bn1(x)
+        # x = self.model.relu(x)
+        # enc2x = x
+        #
+        # # Stage 2
+        # x = self.model.maxpool(x)
+        # x = self.model.layer1(x)
+        # enc4x = x
+        #
+        # # Stage 3
+        # x = self.model.layer2(x)
+        # enc8x = x
+        #
+        # # Stage 4
+        # x = self.model.layer3(x)
+        # enc16x = x
+        #
+        # # Stage 5
+        # x = self.model.layer4(x)
+        # enc32x = x
+        #
+        # return [enc2x, enc4x, enc8x, enc16x, enc32x]
 
     def load_pretrained_ckpt(self):
         # the pre-trained network is provided by https://github.com/thuyngch/Human-Segmentation-PyTorch

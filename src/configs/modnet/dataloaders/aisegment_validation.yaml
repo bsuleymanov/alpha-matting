@@ -14,10 +14,10 @@ dataloader:
   matte_csv: ${..matte_csv}
   background_dir: ${..background_dir}
   image_size: ${..image_size}
-  batch_size: 8
+  batch_size: 1
   drop_last: false
   shuffle: false
-  num_workers: 8
+  num_workers: 1
   mode: ${..mode}
   bg_per_fg: 1
   use_one_img_per_dir: false

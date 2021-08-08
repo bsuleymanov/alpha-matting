@@ -3,7 +3,7 @@ from torchvision import transforms
 from PIL import Image
 import jpeg4py as jpeg
 from pathlib import Path
-from torchvision.transforms.functional import InterpolationMode
+#from torchvision.transforms.functional import InterpolationMode
 import numpy as np
 import albumentations as A
 from albumentations.pytorch import ToTensorV2

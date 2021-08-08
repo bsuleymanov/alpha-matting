@@ -1,0 +1,6 @@
+_target_: src.model.MODNet
+in_channels: 3
+hr_channels: 64
+backbone_arch: "pvt"
+backbone_pretrained: false
+out_channels: 1
