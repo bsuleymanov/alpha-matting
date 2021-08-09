@@ -5,3 +5,20 @@
 .tar
 .pdf
 .npy
+/notebooks/.ipynb_checkpoints/
+/notebooks/utils/
+/notebooks/aisegment_eda.ipynb
+/notebooks/eda.ipynb
+/notebooks/for fast checking.ipynb
+/notebooks/experimenting.ipynb
+/notebooks/foreground extraction.ipynb
+/notebooks/foreground_background_composition.ipynb
+/notebooks/laptop_a0170_indoor_0444.png
+/notebooks/preprocessing.ipynb
+/notebooks/pretrained_backbone.ipynb
+/notebooks/resnet18_human_seg1.ckpt
+/notebooks/test python.ipynb
+/notebooks/train val test split.ipynb
+/notebooks/Untitled.ipynb
+/notebooks/utils.zip
+/notebooks/video_matte_eda.ipynb
