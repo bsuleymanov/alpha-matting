@@ -1,14 +1,40 @@
 defaults:
   - logging@logging: wandb
-  #- inference: aisegment
+  - inference: aisegment
   - training@training: aisegment
-  - models@network: modnet_pvt
+  - models@network: modnet_resnet
   - data@data: aisegment
   #- dataloaders@inference.dataloader: aisegment_inference
   - dataloaders@data.train.dataloader: aisegment_train
   - dataloaders@data.validation.dataloader: aisegment_validation
+  #- dataloaders@data.inference.dataloader: aisegment_inference
   - transforms@data.train.transforms: base_train_transforms
   - transforms@data.validation.transforms: base_val_transforms
+
+data:
+  inference:
+    transform:
+    image_size: 512
+    dataloader:
+      _target_: src.dataloader.AISegmentInferenceLoader
+      image_dir: "../data/to_inference_09082021"
+      batch_size: 1
+      drop_last: false
+      shuffle: false
+      num_workers: 8
+      image_transform:
+        _target_: albumentations.Compose
+        transforms:
+          - _target_: albumentations.SmallestMaxSize
+            max_size: ${.....image_size}
+          - _target_: albumentations.RandomCrop
+            height: ${.....image_size}
+            width: ${.....image_size}
+          - _target_: albumentations.pytorch.ToTensorV2
+
+
+    device: cuda
+    saved_model_name: 100000_network.pth
 
 hydra:
   run:

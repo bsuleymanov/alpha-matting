@@ -20,7 +20,8 @@ from kornia.enhance.normalize import normalize
 
 from image_utils import (generate_trimap_kornia,
                          tensor_to_image,
-                         mkdir_if_empty_or_not_exist)
+                         mkdir_if_empty_or_not_exist,
+                         denorm)
 
 from distributed_utils import (setup, cleanup,
                                is_main_process, set_seed)
@@ -404,7 +405,7 @@ def train_from_folder():
     cfg = compose(config_name="config")
     run_training_single_device(cfg, rank=0)
 
-@hydra.main(config_path="configs/modnet", config_name="full_experiment")
+@hydra.main(config_path="configs/modnet", config_name="config")
 def inference_from_folder(cfg: DictConfig):
     inference_path = Path(cfg.inference.sample_path)
     model_load_path = Path(cfg.inference.model_load_path)
@@ -414,7 +415,16 @@ def inference_from_folder(cfg: DictConfig):
     data_iter = iter(dataloader)
 
     network = instantiate(cfg.network).to(cfg.inference.device)
-    network.load_state_dict(torch.load(model_load_path / cfg.inference.saved_model_name))
+    #network.load_state_dict(torch.load(model_load_path / cfg.inference.saved_model_name))
+
+    state_dict = torch.load(model_load_path / cfg.inference.saved_model_name)
+
+    from collections import OrderedDict
+    new_state_dict = OrderedDict()
+    for k, v in state_dict.items():
+        name = k[7:]  # remove 'module.' of DataParallel/DistributedDataParallel
+        new_state_dict[name] = v
+    network.load_state_dict(new_state_dict)
     network.eval()
 
     if cfg.inference.verbose > 0:
@@ -428,17 +438,21 @@ def inference_from_folder(cfg: DictConfig):
             data_iter = iter(dataloader)
             (images, image_names) = next(data_iter)
         images = images.to(cfg.inference.device).float()
+        images = normalize(images, torch.tensor([0.5, 0.5, 0.5], device=cfg.inference.device),
+                           torch.tensor([0.5, 0.5, 0.5], device=cfg.inference.device))
         with torch.no_grad():
             _, _, mattes_pred = network(images, "test")
             for k, matte_pred in enumerate(mattes_pred):
-                save_image(tensor_to_image(matte_pred),
+                matte_pred = denorm(images[k]) * matte_pred + (1 - mattes_pred)
+
+                save_image(matte_pred,
                            f"{cfg.inference.sample_path}/{image_names[k]}")
 
 
 def main():
-    train_from_folder()
+    #train_from_folder()
     #train_from_folder_distributed()
-    #inference_from_folder()
+    inference_from_folder()
 
 
 if __name__ == "__main__":
