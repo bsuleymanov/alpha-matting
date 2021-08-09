@@ -5,7 +5,7 @@ WORKDIR /matting
 COPY requirements.txt .
 RUN pip install --ignore-installed dvc
 RUN pip install --ignore-installed dvc[gdrive]
-RUN pip install --ignore-installed -r /matting/requirements.txt
+RUN pip install --ignore-installed -r /requirements.txt
 RUN apt-get update && apt-get install libsndfile1-dev -y
 
 
