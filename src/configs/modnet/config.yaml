@@ -25,11 +25,14 @@ data:
       image_transform:
         _target_: albumentations.Compose
         transforms:
-          - _target_: albumentations.SmallestMaxSize
-            max_size: ${.....image_size}
-          - _target_: albumentations.RandomCrop
+          - _target_: albumentations.Resize
             height: ${.....image_size}
             width: ${.....image_size}
+          #- _target_: albumentations.SmallestMaxSize
+          #  max_size: ${.....image_size}
+          #- _target_: albumentations.RandomCrop
+          #  height: ${.....image_size}
+          #  width: ${.....image_size}
           - _target_: albumentations.pytorch.ToTensorV2
 
 

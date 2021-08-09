@@ -17,6 +17,7 @@ import torch.multiprocessing as mp
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torchvision.utils import save_image
 from kornia.enhance.normalize import normalize
+from kornia.geometry.transform import resize
 
 from image_utils import (generate_trimap_kornia,
                          tensor_to_image,
@@ -444,6 +445,8 @@ def inference_from_folder(cfg: DictConfig):
             _, _, mattes_pred = network(images, "test")
             for k, matte_pred in enumerate(mattes_pred):
                 matte_pred = denorm(images[k]) * matte_pred + (1 - mattes_pred)
+                if image_names[k] == "me.jpg":
+                    matte_pred = resize(matte_pred, (1280, 958))
 
                 save_image(matte_pred,
                            f"{cfg.inference.sample_path}/{image_names[k]}")
