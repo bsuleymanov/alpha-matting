@@ -1,22 +1,18 @@
-defaults:
-  - transforms@transforms: base_train_transforms
-
-
-foreground_csv: "../data/AISegment/train_images.csv"
-matte_csv: "../data/AISegment/train_mattes.csv"
-background_dir: "../data/backgrounds/"
-image_size: 512
-mode: "train"
-
-_target_: src.dataloader.AISegmentDistributedLoader
+_target_: src.dataloader.AISegmentLoader
 foreground_csv: ${..foreground_csv}
 matte_csv: ${..matte_csv}
 background_dir: ${..background_dir}
 image_size: ${..image_size}
-batch_size: 1
+batch_size: 4
 drop_last: false
 shuffle: true
-num_workers: 8
+num_workers: 4
 bg_per_fg: 1
 mode: ${..mode}
 use_one_img_per_dir: false
+shared_pre_transform: ${..transforms.shared_pre}
+composition_transform: ${..transforms.composition}
+foreground_transform: ${..transforms.foreground}
+background_transform: ${..transforms.background}
+matte_transform: ${..transforms.matte}
+shared_post_transform: ${..transforms.shared_post}
