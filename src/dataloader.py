@@ -79,6 +79,8 @@ class AISegmentDatasetWOTrimapV2:
         self.matte_transform = set_transform(matte_transform)
         self.shared_post_transform = set_transform(shared_post_transform)
 
+        print(shared_pre_transform)
+
         self.train_dataset = []
         self.test_dataset = []
         self.mode = mode
@@ -183,6 +185,7 @@ class AISegmentLoader:
         print(f"shuffle: {shuffle}")
         #foreground_dir = Path(to_absolute_path(foreground_dir))
         #matte_dir = Path(to_absolute_path(matte_dir))
+        print(background_dir, foreground_csv, matte_csv)
         background_dir = Path(to_absolute_path(background_dir))
         print(foreground_csv)
         foreground_csv = Path(to_absolute_path(foreground_csv))
@@ -683,6 +686,8 @@ class MaadaaMattingDatasetWOTrimap:
         self.image_transform = set_transform(image_transform)
         self.matte_transform = set_transform(matte_transform)
         self.shared_post_transform = set_transform(shared_post_transform)
+
+
 
         self.train_dataset = []
         self.test_dataset = []

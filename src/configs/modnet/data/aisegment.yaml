@@ -1,5 +1,13 @@
-defaults:
-  - dataloaders@inference.dataloader: aisegment_inference
-  - dataloaders@train.dataloader: aisegment_train
+train:
+  foreground_csv: "../data/AISegment/train_images.csv"
+  matte_csv: "../data/AISegment/train_mattes.csv"
+  background_dir: "../data/backgrounds/"
+  image_size: 256
+  mode: "train"
 
-
+validation:
+  foreground_csv: "../data/AISegment/val_images.csv"
+  matte_csv: "../data/AISegment/val_mattes.csv"
+  background_dir: "../data/backgrounds/"
+  image_size: 256
+  mode: "test"

@@ -19,7 +19,8 @@ from torchvision.utils import save_image
 from kornia.enhance.normalize import normalize
 
 from image_utils import (generate_trimap_kornia,
-                         tensor_to_image, mkdir_if_empty_or_not_exist)
+                         tensor_to_image,
+                         mkdir_if_empty_or_not_exist)
 
 from distributed_utils import (setup, cleanup,
                                is_main_process, set_seed)

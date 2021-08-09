@@ -1,12 +1,12 @@
 defaults:
   - logging@logging: wandb
-  - inference: aisegment
-  - training@training: maadaa
+  #- inference: aisegment
+  - training@training: aisegment
   - models@network: modnet_pvt
-  - data@data: maadaa
+  - data@data: aisegment
   #- dataloaders@inference.dataloader: aisegment_inference
-  - dataloaders@data.train.dataloader: maadaa_train
-  - dataloaders@data.validation.dataloader: maadaa_train
+  - dataloaders@data.train.dataloader: aisegment_train
+  - dataloaders@data.validation.dataloader: aisegment_validation
   - transforms@data.train.transforms: base_train_transforms
   - transforms@data.validation.transforms: base_val_transforms
 

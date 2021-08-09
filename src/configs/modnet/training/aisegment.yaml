@@ -1,12 +1,21 @@
-defaults:
-  - losses@loss: modnet
-
-training:
-  total_step: 150000
-  device: cuda
-  parallel: true
-  optimizer:
-    _target_: torch.optim.Adam
+total_step: 150000
+device: cuda
+parallel: true
+loss:
+  _target_: src.losses.ModNetLoss
+  _recursive_: true
+  blurer:
+    _target_: src.model.GaussianBlurLayer
+    n_channels: 1
+    kernel_size: 3
+  semantic_scale: 10.0
+  detail_scale: 10.0
+  matte_scale: 1.0
+  average: true
+  detailed: false
+  device: ${..device}
+optimizer:
+  _target_: torch.optim.Adam
 #    _target_: torch.optim.SGD
 #    lr: 0.01
 #    momentum: 0.9
