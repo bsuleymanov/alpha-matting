@@ -310,11 +310,10 @@ class MODNet(nn.Module):
             self.backbone.load_pretrained_ckpt()
 
         #self.freeze_bn()
-        # self.freeze_backbone()
+        self.freeze_backbone()
 
     def forward(self, image, mode='train'):
         semantic_pred, lr8x, [enc2x, enc4x] = self.lr_branch(image, mode)
-        print('kek1111111')
         detail_pred, hr2x = self.hr_branch(image, enc2x, enc4x, lr8x, mode)
         matte_pred = self.f_branch(image, lr8x, hr2x)
 

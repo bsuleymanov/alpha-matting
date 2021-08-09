@@ -766,7 +766,9 @@ class MaadaaMattingDatasetWOTrimapV2:
         self.bg_per_fg = bg_per_fg
         self.foreground_list = list(map(str, Path(foreground_dir).rglob("*_foreground.jpg")))
         self.background_list = list(map(str, Path(background_dir).rglob("*.jpg")))
-        self.matte_list = list(map(str, Path(image_dir).rglob("*.png")))
+        self.matte_list = [x.replace("_foreground.jpg", ".png")\
+                            .replace(str(foreground_dir), str(image_dir)) for x in self.foreground_list]
+        #self.matte_list = list(map(str, Path(image_dir).rglob("*.png")))
         # hack
         #self.foreground_list = [x[:-4]+"_foreground.jpg" for x in self.matte_list]
         print(len(self.foreground_list), len(self.background_list), len(self.matte_list))

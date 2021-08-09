@@ -366,6 +366,7 @@ def run_training_single_device(cfg, rank):
                             images_to_save.append(wandb.Image(tensor_to_image(matte_pred[k]), caption=matte_names[k]))
                     del semantic_pred, detail_pred, matte_pred,
                     torch.cuda.empty_cache()
+                break
 
             if is_main_process(rank):
                 val_loss_arr.extend([[x, y] for (x, y) in zip([step] * len(val_loss_list), val_loss_list)])

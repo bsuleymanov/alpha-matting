@@ -17,7 +17,7 @@ class MLP(nn.Module):
         super().__init__()
         out_features = out_features or in_features
         hidden_features = hidden_features or in_features
-        print(f"mlp in_f: {in_features}")
+        #print(f"mlp in_f: {in_features}")
 
         self.layers = nn.Sequential(
             nn.Linear(in_features, hidden_features),
@@ -28,7 +28,7 @@ class MLP(nn.Module):
         )
 
     def forward(self, x):
-        print(f"mlp x size: {x.size()}")
+        #print(f"mlp x size: {x.size()}")
         return self.layers(x)
 
 
@@ -53,18 +53,18 @@ class Attention(nn.Module):
             self.norm = nn.LayerNorm(dim)
 
     def forward(self, x, height, width):
-        print(f"x.size: {x.size()}")
+        #print(f"x.size: {x.size()}")
         batch_size, seq_len, n_channels = x.size()
         n_heads = self.n_heads
 
         query = self.query(x)#.chunk(3, dim=-1)
-        print(n_heads)
-        print(f"query size: {query.size()}")
+        #print(n_heads)
+        #print(f"query size: {query.size()}")
         query = rearrange(
                 query,
                 "batch_size n_channels (n_heads dim) -> batch_size n_heads n_channels dim",
                 n_heads=n_heads)
-        print(f"q size: {query.size()}")
+        #print(f"q size: {query.size()}")
         #q = self.q(x).reshape(B, N, self.num_heads, C // self.num_heads).permute(0, 2, 1, 3)
 
         if self.sr_ratio > 1:
@@ -88,7 +88,7 @@ class Attention(nn.Module):
         #k, v = key_value[0], key_value[1]
         #print(f"k, v: {k.size()}, {v.size()}")
 
-        print(f"key_value: {key_value[0].size()}")
+        #print(f"key_value: {key_value[0].size()}")
 
         key, value = map(
             lambda t: rearrange(
@@ -98,7 +98,7 @@ class Attention(nn.Module):
             key_value
         )
 
-        print(f"query, key, value: {query.size(), key.size(), value.size()}")
+        #print(f"query, key, value: {query.size(), key.size(), value.size()}")
 
         scores = einsum(
             #"batch_size n_heads i dim, batch_size n_heads j dim -> batch_size n_heads i j",
@@ -108,7 +108,7 @@ class Attention(nn.Module):
         #scores = torch.matmul(query, key.transpose(-2, -1)) * self.scale
         attn_weights = torch.softmax(scores, dim=-1)
 
-        print('kke')
+        #print('kke')
 
         output = einsum(
             "b h i j, b h j k -> b h i k",
@@ -142,11 +142,11 @@ class Block(nn.Module):
                        activation=activation, dropout_rate=dropout_rate)
 
     def forward(self, x, height, width):
-        print(f"block x size 1: {x.size()}")
+        #print(f"block x size 1: {x.size()}")
         x = self.attn(self.norm1(x), height, width)
-        print(f"block x size 2: {x.size()}")
+        #print(f"block x size 2: {x.size()}")
         x = x + self.drop_path(x)
-        print(f"block x size 3: {x.size()}")
+        #print(f"block x size 3: {x.size()}")
         x = x + self.drop_path(self.mlp(self.norm2(x)))
         return x
 
@@ -204,7 +204,7 @@ class PyramidVisionTransformer(nn.Module):
             pos_embed = nn.Parameter(torch.zeros(1, num_patches, embed_dims[i]))
             pos_drop = nn.Dropout(p=dropout_rate)
 
-            print(f"embed_dims: {embed_dims[i]}")
+            #print(f"embed_dims: {embed_dims[i]}")
 
             block = nn.ModuleList([Block(
                 dim=embed_dims[i], n_heads=n_heads[i], mlp_ratio=mlp_ratios[i],
@@ -247,12 +247,12 @@ class PyramidVisionTransformer(nn.Module):
                 size=(height, width), mode="bilinear").reshape(1, -1, height * width).permute(0, 2, 1)
 
     def forward_features(self, x):
-        outs = [x]
+        outs = []
 
         B = x.shape[0]
 
         for i in range(self.num_stages):
-            print(f"stage {i}")
+            #print(f"stage {i}")
             patch_embed = getattr(self, f"patch_embed{i + 1}")
             pos_embed = getattr(self, f"pos_embed{i + 1}")
             pos_drop = getattr(self, f"pos_drop{i + 1}")
@@ -267,6 +267,7 @@ class PyramidVisionTransformer(nn.Module):
             for blk in block:
                 x = blk(x, H, W)
             x = x.reshape(B, H, W, -1).permute(0, 3, 1, 2).contiguous()
+            #print(f"stage {i}, x.size {x.size()}")
             outs.append(x)
 
         return outs
@@ -274,10 +275,9 @@ class PyramidVisionTransformer(nn.Module):
     def forward(self, x):
         x = self.forward_features(x)
 
-        if self.F4:
-            x = x[3:4]
+        #if self.F4:
+        #    x = x[3:4]
 
-        print(f"PVT size: {len(x)}")
         return x
 
 

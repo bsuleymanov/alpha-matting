@@ -9,7 +9,7 @@ loss:
   _recursive_: true
   blurer:
     _target_: src.model.GaussianBlurLayer
-    n_channels: 1
+    n_channels: 3
     kernel_size: 3
   semantic_scale: 10.0
   detail_scale: 10.0
