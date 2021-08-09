@@ -2,7 +2,7 @@
 
 
 ## Results
-Randomly (cherry-picked :)) picked from an experiment
+Randomly (cherry-picked :)) picked from one of experiments
 - model: MODNet 
 - backbone: ResNet18
 - trimaps: randomly generated on each iteration
