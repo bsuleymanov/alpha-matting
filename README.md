@@ -2,13 +2,6 @@
 
 
 ## Results
-Old model
-- model: MODNet 
-- backbone: MobileNetv2
-- trimaps: randomly generated on each iteration
-- data: Maadaa, no augmentation, no image harmonization
-![Result](https://github.com/bsuleymanov/alpha-matting/blob/main/images/res4.png "Result")
-
 Randomly (cherry-picked :)) picked from one of experiments
 - model: MODNet 
 - backbone: ResNet18
@@ -17,10 +10,16 @@ Randomly (cherry-picked :)) picked from one of experiments
 - training: 100k iterations, 4x8 batch size
 - W&B [report](https://wandb.ai/bsuleymanov/alpha-matting/reports/MODNet-ResNet18-AISegment--Vmlldzo5MTg4NjY?accessToken=xavo7dyslq9ttkt0onvfh9bf63n7zsfc2n0cn94e5akzf6zdzh5j2fckqns3azzg)
 
+
+My selfie:  
+![Good result](https://github.com/bsuleymanov/alpha-matting/blob/main/images/res4.png "Result")
+
+Test set pictures:  
 ![Good result](https://github.com/bsuleymanov/alpha-matting/blob/main/images/res1.png "Result")
 ![Good result](https://github.com/bsuleymanov/alpha-matting/blob/main/images/res2.png "Result")
 ![Bad result](https://github.com/bsuleymanov/alpha-matting/blob/main/images/res3.png "Result")
 
+old model: http://backgroundmatting.herokuapp.com/
 
 
 
