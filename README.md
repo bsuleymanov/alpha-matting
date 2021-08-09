@@ -39,8 +39,8 @@ To do composition harmonization, one can use [Foreground-aware Semantic Represen
 ](https://github.com/junleen/RainNet) with pre-trained models for 512x512 images.
 
 ## Acknowledgement
-Code of MODNet architecture is based on [official repo](https://github.com/ZHKKKe/MODNet).
-Code of PVT architecture is based on [official repo](https://github.com/whai362/PVT).
-Einops usage is learnt from [lucidrain](https://github.com/lucidrains/vit-pytorch).
+Code of MODNet architecture is based on [official repo](https://github.com/ZHKKKe/MODNet).  
+Code of PVT architecture is based on [official repo](https://github.com/whai362/PVT).  
+Einops usage is learnt from [lucidrain](https://github.com/lucidrains/vit-pytorch).  
 Image harmonization is based on [Foreground-aware Semantic Representations for Image Harmonization](https://github.com/saic-vul/image_harmonization) and [Region-aware Adaptive Instance Normalization for Image Harmonization
 ](https://github.com/junleen/RainNet).
